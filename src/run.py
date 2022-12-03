@@ -1,18 +1,34 @@
 import glob
+
+import nltk
 from txtai.embeddings import Embeddings
+from txtai.pipeline import Textractor
+
+
+def download_corpus():
+    nltk.download('punkt')
+
+
+TEXTRACTOR = Textractor(paragraphs=True)
+
+
+def extract_paragraphs(filepath: str):
+    return TEXTRACTOR(filepath)
+    # with open(filepath, "r") as f:
+    #     content = f.read()
+    #     sentences = nltk.sent_tokenize(content)
+    #     return sentences
 
 
 # Generate the index from org files
 def notes_generator(path):
     for filename in glob.glob(f"{path}/*.org"):
-        with open(filename, "r") as f:
-            title = filename.split("/")[-1]
-            if title.startswith("journal"):
-                continue
+        title = filename.split("/")[-1]
+        if "journal" in title:
+            continue
 
-            # TODO split between properties and 'See also'
-            text = f.read()
-            yield title, text
+        for paragraph in extract_paragraphs(filename):
+            yield title, paragraph
 
 
 def build_index():
@@ -34,6 +50,19 @@ def build_index():
 def search_index(query: str):
     embeddings = Embeddings()
     embeddings.load("test_index_3")
-    result = embeddings.search(query, 1)
-    if result:
-        return result[0]["title"]
+    results = embeddings.search(query, 1)
+    return results
+
+# print("Building index")
+# build_index()
+# print(search_index("rules to survival"))
+# download_corpus()
+# build_index()
+
+while True:
+    value = input("\nEnter search query:\n")
+    embeddings = Embeddings()
+    embeddings.load("test_index_3")
+    for i in embeddings.search(f"select text, score from txtai where similar('{value}') and score >= 0.15"):
+        print("-----------------------")
+        print(i["text"])
