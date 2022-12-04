@@ -14,10 +14,6 @@ TEXTRACTOR = Textractor(paragraphs=True)
 
 def extract_paragraphs(filepath: str):
     return TEXTRACTOR(filepath)
-    # with open(filepath, "r") as f:
-    #     content = f.read()
-    #     sentences = nltk.sent_tokenize(content)
-    #     return sentences
 
 
 # Generate the index from org files
@@ -53,11 +49,6 @@ def search_index(query: str):
     results = embeddings.search(query, 1)
     return results
 
-# print("Building index")
-# build_index()
-# print(search_index("rules to survival"))
-# download_corpus()
-# build_index()
 
 while True:
     value = input("\nEnter search query:\n")
