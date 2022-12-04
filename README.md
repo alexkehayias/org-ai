@@ -1,4 +1,12 @@
-# Installation
+# About
+
+Utilities for bringing AI to org-mode.
+
+# Semantic search
+
+Use `txtai` to create an index for searching notes by a similarity query.
+
+## Installation
 
 Install `openjdk`
 
@@ -18,4 +26,10 @@ Install python dependencies
 ```
 pip3 install git+https://github.com/neuml/txtai
 pip3 install git+https://github.com/neuml/txtai#egg=txtai[pipeline]
+```
+
+## Running the example
+
+```
+python3 src/run.py
 ```
