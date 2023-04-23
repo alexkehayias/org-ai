@@ -3,3 +3,5 @@ lib/
 share/
 *_index/
 *index*/
+*.pickle
+bin/

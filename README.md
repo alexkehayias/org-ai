@@ -31,5 +31,7 @@ pip3 install git+https://github.com/neuml/txtai#egg=txtai[pipeline]
 ## Running the example
 
 ```
+python3 -1 venv ./org-ai
+source ./bin/activate
 python3 src/run.py
 ```

@@ -54,6 +54,6 @@ while True:
     value = input("\nEnter search query:\n")
     embeddings = Embeddings()
     embeddings.load("test_index_3")
-    for i in embeddings.search(f"select text, score from txtai where similar('{value}') and score >= 0.15"):
+    for i in embeddings.search(f"select text, title, score from txtai where similar('{value}') and score >= 0.15 order by score desc"):
         print("-----------------------")
-        print(i["text"])
+        print(f"{i['title']}\n{i['text']}\n")
