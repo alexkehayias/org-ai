@@ -4,35 +4,109 @@ import pickle
 import glob
 import re
 
-from langchain.chat_models import ChatOpenAI
+from langchain.agents import AgentType, Tool, initialize_agent
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores.faiss import FAISS
+from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
+from langchain.utilities import SerpAPIWrapper
+from langchain.vectorstores.faiss import FAISS
+
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+SERP_API_KEY = os.getenv('SERP_API_KEY')
 
-TEMPLATE = """You are a helpful personal assistant. Respond clearly and concisely. Given the following data, create a final answer ("FINAL ANSWER") with a list of references ("SOURCES"). Only use references that match the question. If you don't know the answer, just say that you don't know. Don't try to make up an answer. ALWAYS return a "SOURCES" part in your answer.
+CHAT_TEMPLATE = """You are a helpful personal assistant helping me write. Fill in the answer ("FINAL ANSWER") to the question ("QUESTION") to the best of your ability. Only include answers to the most recent question, do not answer previous questions. ALWAYS include sources ("SOURCES") in the final answer.
+
+QUESTION: {question}
+
+FINAL ANSWER:"""
+CHAT_PROMPT = PromptTemplate(
+    template=CHAT_TEMPLATE, input_variables=["question"]
+)
+
+NOTES_TEMPLATE = """You are a helpful personal assistant looking through notes I've written. Given the following related notes, choose the notes that are relevant to the question ("QUESTION") and write an answer ("ANSWER") with a list of sources ("SOURCES"). If you don't know the answer, just say that you don't know. Don't try to make up an answer. ALWAYS return a "SOURCES" part in your answer unless there were none.
 
 QUESTION: {question}
 =========
 {summaries}
 =========
-FINAL ANSWER:"""
-PROMPT = PromptTemplate(
-    template=TEMPLATE, input_variables=["summaries", "question"]
+ANSWER:"""
+NOTES_PROMPT = PromptTemplate(
+    template=NOTES_TEMPLATE, input_variables=["summaries", "question"]
 )
 
 
-CHAIN = load_qa_with_sources_chain(
+def search_index():
+    with open("note_search_index.pickle", "rb") as f:
+        return pickle.load(f)
+
+
+def gpt_answer(question):
+    index = search_index()
+    # TODO: use the links in the document metadata to extract related
+    # docs
+    result = NOTES_CHAIN(
+        {
+            "input_documents": index.similarity_search(question, k=4),
+            "question": question,
+        },
+        return_only_outputs=True,
+    )
+
+    return result["output_text"]
+
+
+LLM = ChatOpenAI(
+    openai_api_key=OPENAI_API_KEY,
+    model_name="gpt-3.5-turbo",
+    temperature=0,
+)
+
+
+SEARCH = SerpAPIWrapper(
+    serpapi_api_key = SERP_API_KEY
+)
+TOOLS = [
+    Tool(
+        name = "Current Search",
+        func=SEARCH.run,
+        description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term."
+    ),
+    Tool(
+        name = "Notes",
+        func=gpt_answer,
+        description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename."
+    ),
+    Tool(
+        name = "General Inquiry",
+        func=LLM.call_as_llm,
+        description="Useful for answering general questions. The input to this should be a statement or question."
+    ),
+]
+MEMORY = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+
+CHAIN = initialize_agent(
+    TOOLS,
+    LLM,
+    agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+    verbose=True,
+    memory=MEMORY,
+    prompt=CHAT_PROMPT,
+)
+
+
+NOTES_CHAIN = load_qa_with_sources_chain(
     ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
         model_name="gpt-3.5-turbo",
         temperature=0,
     ),
     chain_type="stuff",
-    prompt=PROMPT,
+    prompt=NOTES_PROMPT,
 )
 
 
@@ -119,26 +193,6 @@ def build_search_index_and_embeddings(path):
         pickle.dump(index, f)
 
 
-def search_index():
-    with open("note_search_index.pickle", "rb") as f:
-        return pickle.load(f)
-
-
-def gpt_answer(question):
-    index = search_index()
-    # TODO: use the links in the document metadata to extract related
-    # docs
-    result = CHAIN(
-        {
-            "input_documents": index.similarity_search(question, k=4),
-            "question": question,
-        },
-        return_only_outputs=True,
-    )
-
-    return result["output_text"]
-
-
 # def gpt3():
 #     response = openai.Completion.create(
 #         prompt=prompt + start_text,
@@ -157,8 +211,8 @@ def gpt_answer(question):
 
 def chat():
     while True:
-        prompt = input(' ')
-        answer = gpt_answer(prompt)
+        prompt = input('> ')
+        answer = CHAIN.run(input=prompt)
         print(answer)
 
 
