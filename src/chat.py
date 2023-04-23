@@ -18,16 +18,8 @@ from langchain.vectorstores.faiss import FAISS
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 SERP_API_KEY = os.getenv('SERP_API_KEY')
 
-CHAT_TEMPLATE = """You are a helpful personal assistant helping me write. Fill in the answer ("FINAL ANSWER") to the question ("QUESTION") to the best of your ability. Only include answers to the most recent question, do not answer previous questions. ALWAYS include sources ("SOURCES") in the final answer.
 
-QUESTION: {question}
-
-FINAL ANSWER:"""
-CHAT_PROMPT = PromptTemplate(
-    template=CHAT_TEMPLATE, input_variables=["question"]
-)
-
-NOTES_TEMPLATE = """You are a helpful personal assistant looking through notes I've written. Given the following related notes, choose the notes that are relevant to the question ("QUESTION") and write an answer ("ANSWER") with a list of sources ("SOURCES"). If you don't know the answer, just say that you don't know. Don't try to make up an answer. ALWAYS return a "SOURCES" part in your answer unless there were none.
+NOTES_TEMPLATE = """You are a helpful personal assistant looking through notes I've written. Given the following related notes, choose the notes that are relevant to the question ("QUESTION") and write an answer ("ANSWER") with a list of sources ("SOURCES"). The list of sources should include the title of the note and the ID. If you don't know the answer, just say that you don't know. Don't try to make up an answer. ALWAYS return a "SOURCES" part in your answer unless there were none.
 
 QUESTION: {question}
 =========
@@ -69,23 +61,22 @@ LLM = ChatOpenAI(
 SEARCH = SerpAPIWrapper(
     serpapi_api_key = SERP_API_KEY
 )
+
+
 TOOLS = [
     Tool(
         name = "Current Search",
         func=SEARCH.run,
-        description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term."
+        description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term.",
     ),
     Tool(
-        name = "Notes",
+        name = "Find Notes",
         func=gpt_answer,
-        description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename."
-    ),
-    Tool(
-        name = "General Inquiry",
-        func=LLM.call_as_llm,
-        description="Useful for answering general questions. The input to this should be a statement or question."
+        description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename.",
     ),
 ]
+
+
 MEMORY = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 
@@ -95,7 +86,6 @@ CHAIN = initialize_agent(
     agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
     verbose=True,
     memory=MEMORY,
-    prompt=CHAT_PROMPT,
 )
 
 
@@ -191,22 +181,6 @@ def build_search_index_and_embeddings(path):
             ),
         )
         pickle.dump(index, f)
-
-
-# def gpt3():
-#     response = openai.Completion.create(
-#         prompt=prompt + start_text,
-#         engine=engine,
-#         max_tokens=response_length,
-#         temperature=temperature,
-#         top_p=top_p,
-#         frequency_penalty=frequency_penalty,
-#         presence_penalty=presence_penalty,
-#         stop=stop_seq,
-#     )
-#     answer = response.choices[0]['text']
-#     new_prompt = prompt + start_text + answer + restart_text
-#     return answer, new_prompt
 
 
 def chat():
