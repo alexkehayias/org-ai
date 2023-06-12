@@ -19,13 +19,21 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 SERP_API_KEY = os.getenv('SERP_API_KEY')
 
 
-NOTES_TEMPLATE = """You are a helpful personal assistant looking through notes I've written. Given the following related notes, choose the notes that are relevant to the question ("QUESTION") and write an answer ("ANSWER") with a list of sources ("SOURCES"). The list of sources should include the title of the note and the ID. If you don't know the answer, just say that you don't know. Don't try to make up an answer. ALWAYS return a "SOURCES" part in your answer unless there were none.
+NOTES_TEMPLATE = """
+You are a helpful personal assistant helping to answer the question ("QUESTION") by looking through related notes I've written ("SUMMARIES").
+You are really good at finding connections between notes and finding the key ideas to answer questions.
+Given the related notes ("SUMMARIES"), choose the notes that are most relevant to the question ("QUESTION") and write an answer ("ANSWER") with a list of sources ("SOURCES") you drew from.
+The list of sources ("SOURCES") should include the title of the note and the ID.
+ALWAYS return a "SOURCES" part in your answer unless there were none.
+If you don't know the answer, just say that you don't know. Don't try to make up an answer.
 
 QUESTION: {question}
 =========
+SUMMARIES:
 {summaries}
 =========
-ANSWER:"""
+ANSWER:
+"""
 NOTES_PROMPT = PromptTemplate(
     template=NOTES_TEMPLATE, input_variables=["summaries", "question"]
 )
