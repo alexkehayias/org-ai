@@ -31,7 +31,22 @@ pip3 install git+https://github.com/neuml/txtai#egg=txtai[pipeline]
 ## Running the example
 
 ```
-python3 -1 venv ./org-ai
-source ./bin/activate
 python3 src/run.py
+```
+
+# Chat with your notes
+
+Use OpenAI GPT models to have a conversation from the contents of your notes.
+
+## Installation
+
+```
+source ./bin/activate
+pip3 install -r requirements.txt
+```
+
+## Running the example
+
+```
+python3 src/chat.py
 ```
