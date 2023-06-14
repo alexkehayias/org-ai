@@ -5,3 +5,4 @@ share/
 *index*/
 *.pickle
 bin/
+*__pycache__/
