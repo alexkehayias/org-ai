@@ -4,7 +4,8 @@ import pickle
 import glob
 import re
 
-from langchain.agents import AgentType, Tool, initialize_agent
+from langchain import OpenAI, LLMChain
+from langchain.agents import AgentType, ZeroShotAgent, Tool, AgentExecutor, initialize_agent
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
@@ -87,13 +88,30 @@ TOOLS = [
 
 MEMORY = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
+AGENT_PREFIX = """Have a conversation with a human, answering the following questions as best you can. You have access to the following tools:"""
+AGENT_SUFFIX = """Begin!"
 
-CHAIN = initialize_agent(
+{chat_history}
+Question: {input}
+{agent_scratchpad}"""
+
+AGENT_PROMPT = ZeroShotAgent.create_prompt(
     TOOLS,
-    LLM,
-    agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
+    prefix=AGENT_PREFIX,
+    suffix=AGENT_SUFFIX,
+    input_variables=["input", "chat_history", "agent_scratchpad"]
+)
+AGENT_LLM_CHAIN = LLMChain(llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo"), prompt=AGENT_PROMPT)
+AGENT = ZeroShotAgent(
+    llm_chain=AGENT_LLM_CHAIN,
+    tools=TOOLS,
+    verbose=True
+)
+AGENT_CHAIN = AgentExecutor.from_agent_and_tools(
+    agent=AGENT,
+    tools=TOOLS,
     verbose=True,
-    memory=MEMORY,
+    memory=MEMORY
 )
 
 
@@ -194,7 +212,7 @@ def build_search_index_and_embeddings(path):
 def chat():
     while True:
         prompt = input('> ')
-        answer = CHAIN.run(input=prompt)
+        answer = AGENT_CHAIN.run(input=prompt)
         print(answer)
 
 
