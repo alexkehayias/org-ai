@@ -1,6 +1,4 @@
 import sys
-import os
-import pickle
 import glob
 import re
 
@@ -129,6 +127,7 @@ def extract_note(file_path):
 
     id = ''
     title = ''
+    tags = []
     links = []
     body = ''
     read_body = False
@@ -136,6 +135,11 @@ def extract_note(file_path):
     for line in lines:
         if line.startswith('#+TITLE:'):
             title = line.replace('#+TITLE: ', '').capitalize().strip()
+            continue
+
+        if line.startswith('#+FILETAGS:'):
+            tags = line.replace('#+FILETAGS: ', '').split(' ')
+            tags = [i.strip() for i in tags]
             continue
 
         if line.startswith('#+'):
@@ -157,7 +161,15 @@ def extract_note(file_path):
             links += matches
             body += text
 
-    return id, title, body.strip(), links
+    return id, title, tags, body.strip(), links
+
+
+SKIP_NOTES_WITH_TAGS = [
+    "journal",
+    "project",
+    "entity",
+    "section",
+]
 
 
 def build_search_index_and_embeddings(path):
@@ -166,20 +178,18 @@ def build_search_index_and_embeddings(path):
     """
     sources = []
     for filename in glob.glob(f"{path}/*.org"):
-        print(f"Indexing {filename}")
-        id, title, body, links = extract_note(filename)
+        id, title, tags, body, links = extract_note(filename)
 
         if not body:
             print(f"Skipping note because the body is empty: {filename}")
             continue
 
-        # Skip journal entries
-        if "journal" in title.lower():
+        # Skip anything we don't want indexed
+        if set(tags).intersection(set(SKIP_NOTES_WITH_TAGS)):
+            print(f"Skipping note because it contains skippable tags: {filename} {tags}")
             continue
 
-        # Skip projects entries
-        if "project" in title.lower():
-            continue
+        print(f"Indexing {filename}")
 
         doc = Document(
             page_content=body,
