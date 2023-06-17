@@ -15,9 +15,7 @@ from langchain.utilities import SerpAPIWrapper
 from langchain.vectorstores.faiss import FAISS
 from langchain.tools import format_tool_to_openai_function
 
-
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-SERP_API_KEY = os.getenv('SERP_API_KEY')
+from config import PROJECT_ROOT_DIR, OPENAI_API_KEY, SERP_API_KEY
 
 
 NOTES_TEMPLATE = """
@@ -41,8 +39,13 @@ NOTES_PROMPT = PromptTemplate(
 
 
 def search_index():
-    with open("note_search_index.pickle", "rb") as f:
-        return pickle.load(f)
+    return FAISS.load_local(
+        folder_path=f"{PROJECT_ROOT_DIR}/index",
+        index_name="notes_search",
+        embeddings=OpenAIEmbeddings(
+            openai_api_key=OPENAI_API_KEY,
+        ),
+    )
 
 
 def gpt_answer(question):
@@ -174,6 +177,10 @@ def build_search_index_and_embeddings(path):
         if "journal" in title.lower():
             continue
 
+        # Skip projects entries
+        if "project" in title.lower():
+            continue
+
         doc = Document(
             page_content=body,
             metadata={
@@ -185,14 +192,16 @@ def build_search_index_and_embeddings(path):
 
         sources.append(doc)
 
-    with open("note_search_index.pickle", "wb") as f:
-        index = FAISS.from_documents(
-            documents=sources,
-            embedding=OpenAIEmbeddings(
-                openai_api_key=OPENAI_API_KEY,
-            ),
-        )
-        pickle.dump(index, f)
+    index = FAISS.from_documents(
+        documents=sources,
+        embedding=OpenAIEmbeddings(
+            openai_api_key=OPENAI_API_KEY,
+        ),
+    )
+    index.save_local(
+        folder_path=f"{PROJECT_ROOT_DIR}/index",
+        index_name="notes_search",
+    )
 
 
 def chat():
