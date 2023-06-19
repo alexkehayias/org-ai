@@ -8,10 +8,10 @@ from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.memory import ConversationBufferMemory
-from langchain.prompts import PromptTemplate
+from langchain.prompts import MessagesPlaceholder, PromptTemplate
+from langchain.tools import format_tool_to_openai_function
 from langchain.utilities import SerpAPIWrapper
 from langchain.vectorstores.faiss import FAISS
-from langchain.tools import format_tool_to_openai_function
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY, SERP_API_KEY
 
@@ -90,7 +90,7 @@ TOOLS = [
 FUNCTIONS = [format_tool_to_openai_function(t) for t in TOOLS]
 
 
-MEMORY = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+MEMORY = ConversationBufferMemory(memory_key="memory", return_messages=True)
 
 
 AGENT = initialize_agent(
@@ -98,6 +98,10 @@ AGENT = initialize_agent(
     functions=FUNCTIONS,
     llm=LLM,
     agent=AgentType.OPENAI_FUNCTIONS,
+    agent_kwargs = {
+        "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
+    },
+    memory=MEMORY,
     verbose=True
 )
 
