@@ -1,6 +1,8 @@
+import cmd
 import sys
 import glob
 import re
+from typing import List
 
 from langchain.agents import AgentType, Tool, initialize_agent
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
@@ -12,8 +14,17 @@ from langchain.prompts import MessagesPlaceholder, PromptTemplate
 from langchain.tools import format_tool_to_openai_function
 from langchain.utilities import SerpAPIWrapper
 from langchain.vectorstores.faiss import FAISS
+from langchain.agents.agent_toolkits import PlayWrightBrowserToolkit
+from langchain.tools.playwright.utils import (
+    create_sync_playwright_browser,
+)
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY, SERP_API_KEY
+
+
+BROWSER = create_sync_playwright_browser()
+BROWSER_TOOLKIT = PlayWrightBrowserToolkit.from_browser(sync_browser=BROWSER)
+BROWSER_TOOLS = BROWSER_TOOLKIT.get_tools()
 
 
 NOTES_TEMPLATE = """
@@ -85,6 +96,7 @@ TOOLS = [
         description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename.",
     ),
 ]
+TOOLS += BROWSER_TOOLS
 
 
 FUNCTIONS = [format_tool_to_openai_function(t) for t in TOOLS]
@@ -218,17 +230,29 @@ def build_search_index_and_embeddings(path):
     )
 
 
-def chat():
-    while True:
-        prompt = input('> ')
-        answer = AGENT.run(input=prompt)
+
+class ChatCmd(cmd.Cmd):
+    prompt = '> '
+    commands: List[str] = []
+
+    def do_list(self, line):
+        print(self.commands)
+
+    def default(self, line):
+        print(line[::])
+        answer = AGENT.run(input=line)
         print(answer)
+        # Write your code here by handling the input entered
+        self.commands.append(line)
+
+    def do_exit(self, line):
+        return True
 
 
 if __name__ == '__main__':
     args = sys.argv
     if len(args) == 1:
-        chat()
+        ChatCmd().cmdloop()
     if len(args) == 3:
         command = sys.argv[1]
         if command == "index":
