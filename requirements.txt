@@ -38,7 +38,6 @@ matplotlib-inline==0.1.6
 mpmath==1.2.1
 multidict==6.0.4
 mypy-extensions==1.0.0
-nltk==3.7
 numexpr==2.8.4
 numpy==1.23.5
 onnx==1.12.0
@@ -92,7 +91,6 @@ tqdm==4.64.1
 traitlets==5.9.0
 transformers==4.25.1
 ttstokenizer==1.0.0
-txtai @ git+https://github.com/neuml/txtai@bb62355b5369f4c91f3e2f36526269240c0cda10
 types-pytz==2022.6.0.1
 typing-inspect==0.8.0
 typing_extensions==4.4.0

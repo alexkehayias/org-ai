@@ -15,7 +15,7 @@ source ./bin/activate
 pip3 install -r requirements.txt
 ```
 
-### Running the example
+### Running it
 
 ```
 python3 src/chat.py
