@@ -114,7 +114,7 @@ AGENT = initialize_agent(
         "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
     },
     memory=MEMORY,
-    verbose=True
+    verbose=False
 )
 
 
@@ -239,7 +239,6 @@ class ChatCmd(cmd.Cmd):
         print(self.commands)
 
     def default(self, line):
-        print(line[::])
         answer = AGENT.run(input=line)
         print(answer)
         # Write your code here by handling the input entered
