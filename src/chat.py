@@ -3,6 +3,7 @@ import sys
 import glob
 import re
 from typing import List
+from enum import Enum
 
 from langchain.agents import AgentType, Tool, initialize_agent
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
@@ -230,6 +231,71 @@ def build_search_index_and_embeddings(path):
     )
 
 
+def build_task_search_index_and_embeddings(file):
+    """
+    Builds a search index for org-agenda tasks based on vectors of
+    embeddings.
+    """
+
+    # Get the list of agenda files by reading the default
+    # customizations file for emacs
+    emacs_customization_file = f"~/.emacs.d/customizations.el"
+
+    agenda_files = []
+    with open(emacs_customization_file) as f:
+        found = False
+        for line in f.readlines():
+            if found:
+                # Transform a lisp list to a python list
+                file_paths = line.replace("'(", "").replace('))').trim().split(" ")
+                for i in file_paths:
+                    agenda_files.append(i.replace("\"", ""))
+            # Detect the configuration for org-agenda-files
+            if not line.startswith(" '(org-agenda-files"):
+                continue
+            # Set the sentinel value to indicate the next line is the
+            # value we were looking for
+            found = True
+
+    sources = []
+    for filename in agenda_files:
+        pass
+    #     id, title, tags, body, links = extract_note(filename)
+
+    #     if not body:
+    #         print(f"Skipping note because the body is empty: {filename}")
+    #         continue
+
+    #     # Skip anything we don't want indexed
+    #     if set(tags).intersection(set(SKIP_NOTES_WITH_TAGS)):
+    #         print(f"Skipping note because it contains skippable tags: {filename} {tags}")
+    #         continue
+
+    #     print(f"Indexing {filename}")
+
+    #     doc = Document(
+    #         page_content=body,
+    #         metadata={
+    #             "id": id,
+    #             "links": links,
+    #             "source": filename,
+    #         },
+    #     )
+
+    #     sources.append(doc)
+
+    # index = FAISS.from_documents(
+    #     documents=sources,
+    #     embedding=OpenAIEmbeddings(
+    #         openai_api_key=OPENAI_API_KEY,
+    #     ),
+    # )
+    # index.save_local(
+    #     folder_path=f"{PROJECT_ROOT_DIR}/index",
+    #     index_name="tasks_search",
+    # )
+
+
 
 class ChatCmd(cmd.Cmd):
     prompt = '> '
@@ -248,16 +314,41 @@ class ChatCmd(cmd.Cmd):
         return True
 
 
+class Command(Enum):
+    Index = "index"
+
+
+class IndexSubCommand(Enum):
+    Notes = "notes"
+    Tasks = "tasks"
+
+
 if __name__ == '__main__':
     args = sys.argv
     if len(args) == 1:
         ChatCmd().cmdloop()
     if len(args) == 3:
         command = sys.argv[1]
-        if command == "index":
+        if command == Command.Index:
             path = sys.argv[2]
             build_search_index_and_embeddings(path)
             print("Indexing complete!")
+        else:
+            print(f"Unknown command \"{command}\"")
+    if len(args) == 4:
+        command = sys.argv[1]
+        if command == Command.Index:
+            sub_command = sys.argv[2]
+            if sub_command == IndexSubCommand.Notes:
+                path = sys.argv[3]
+                build_search_index_and_embeddings(path)
+                print("Indexing complete!")
+            elif sub_command == IndexSubCommand.Tasks:
+                file = sys.argv[3]
+                build_task_search_index_and_embeddings(file)
+                print("Indexing complete!")
+            else:
+                print(f"Unknown sub-command \"{sub_command}\"")
         else:
             print(f"Unknown command \"{command}\"")
     else:
