@@ -263,7 +263,7 @@ def build_task_search_index_and_embeddings(file):
 
     sources = []
     for filename in agenda_files:
-        print(filename)
+        print(f"Working on {filename}")
         pass
     #     id, title, tags, body, links = extract_note(filename)
 
@@ -332,15 +332,7 @@ if __name__ == '__main__':
     args = sys.argv
     if len(args) == 1:
         ChatCmd().cmdloop()
-    if len(args) == 3:
-        command = sys.argv[1]
-        if command == Command.Index:
-            path = sys.argv[2]
-            build_search_index_and_embeddings(path)
-            print("Indexing complete!")
-        else:
-            print(f"Unknown command \"{command}\"")
-    if len(args) == 4:
+    elif len(args) > 1:
         command = sys.argv[1]
         if command == Command.Index:
             sub_command = sys.argv[2]
@@ -356,5 +348,3 @@ if __name__ == '__main__':
                 print(f"Unknown sub-command \"{sub_command}\"")
         else:
             print(f"Unknown command \"{command}\"")
-    else:
-        print("Too many arguments")
