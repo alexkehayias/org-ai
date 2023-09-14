@@ -1,3 +1,4 @@
+import os
 import cmd
 import sys
 import glob
@@ -239,7 +240,7 @@ def build_task_search_index_and_embeddings(file):
 
     # Get the list of agenda files by reading the default
     # customizations file for emacs
-    emacs_customization_file = f"~/.emacs.d/customizations.el"
+    emacs_customization_file = os.path.expanduser(f"~/.emacs.d/.customizations.el")
 
     agenda_files = []
     with open(emacs_customization_file) as f:
@@ -247,18 +248,22 @@ def build_task_search_index_and_embeddings(file):
         for line in f.readlines():
             if found:
                 # Transform a lisp list to a python list
-                file_paths = line.replace("'(", "").replace('))').trim().split(" ")
+                file_paths = line.replace("'(", "").replace('))', '').strip().split(" ")
                 for i in file_paths:
-                    agenda_files.append(i.replace("\"", ""))
+                    cleaned = i.replace("\"", "")
+                    full_path = os.path.expanduser(cleaned)
+                    agenda_files.append(full_path)
+                break
             # Detect the configuration for org-agenda-files
-            if not line.startswith(" '(org-agenda-files"):
+            if line.startswith(" '(org-agenda-files"):
+                # Set the sentinel value to indicate the next line is the
+                # value we were looking for
+                found = True
                 continue
-            # Set the sentinel value to indicate the next line is the
-            # value we were looking for
-            found = True
 
     sources = []
     for filename in agenda_files:
+        print(filename)
         pass
     #     id, title, tags, body, links = extract_note(filename)
 
@@ -314,11 +319,11 @@ class ChatCmd(cmd.Cmd):
         return True
 
 
-class Command(Enum):
+class Command(str, Enum):
     Index = "index"
 
 
-class IndexSubCommand(Enum):
+class IndexSubCommand(str, Enum):
     Notes = "notes"
     Tasks = "tasks"
 
