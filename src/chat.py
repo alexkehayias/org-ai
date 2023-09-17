@@ -20,6 +20,8 @@ from langchain.agents.agent_toolkits import PlayWrightBrowserToolkit
 from langchain.tools.playwright.utils import (
     create_sync_playwright_browser,
 )
+from langchain.document_loaders import UnstructuredOrgModeLoader
+
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY, SERP_API_KEY
 
@@ -59,19 +61,38 @@ def search_index():
     )
 
 
-def gpt_answer(question):
-    index = search_index()
-    # TODO: use the links in the document metadata to extract related
-    # docs
+def task_index():
+    return FAISS.load_local(
+        folder_path=f"{PROJECT_ROOT_DIR}/index",
+        index_name="tasks_search",
+        embeddings=OpenAIEmbeddings(
+            openai_api_key=OPENAI_API_KEY,
+        ),
+    )
+
+
+def _gpt_answer(index, question, **kwargs):
+    print(f"_gpt_answer got additional kwargs: {kwargs}")
     result = NOTES_CHAIN(
         {
             "input_documents": index.similarity_search(question, k=4),
             "question": question,
+            **kwargs
         },
         return_only_outputs=True,
     )
 
     return result["output_text"]
+
+
+def gpt_answer_notes(question, **kwargs):
+    index = search_index()
+    return _gpt_answer(index, question, **kwargs)
+
+
+def gpt_answer_tasks(question, **kwargs):
+    index = task_index()
+    return _gpt_answer(index, question, **kwargs)
 
 
 LLM = ChatOpenAI(
@@ -94,8 +115,13 @@ TOOLS = [
     ),
     Tool(
         name = "Notes",
-        func=gpt_answer,
+        func=gpt_answer_notes,
         description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename.",
+    ),
+    Tool(
+        name = "Tasks",
+        func=gpt_answer_tasks,
+        description="Useful for when you need to respond to a question about tasks or todo lists or projects or meetings.",
     ),
 ]
 TOOLS += BROWSER_TOOLS
@@ -116,7 +142,7 @@ AGENT = initialize_agent(
         "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
     },
     memory=MEMORY,
-    verbose=False
+    verbose=True
 )
 
 
@@ -213,8 +239,6 @@ def build_search_index_and_embeddings(path):
             page_content=body,
             metadata={
                 "id": id,
-                "title": title,
-                "tags": tags,
                 "links": links,
                 "source": filename,
             },
@@ -234,7 +258,7 @@ def build_search_index_and_embeddings(path):
     )
 
 
-def build_task_search_index_and_embeddings(file):
+def build_task_search_index_and_embeddings():
     """
     Builds a search index for org-agenda tasks based on vectors of
     embeddings.
@@ -266,42 +290,26 @@ def build_task_search_index_and_embeddings(file):
     sources = []
     for filename in agenda_files:
         print(f"Working on {filename}")
-        pass
-    #     id, title, tags, body, links = extract_note(filename)
+        loader = UnstructuredOrgModeLoader(file_path=filename, mode="elements")
 
-    #     if not body:
-    #         print(f"Skipping note because the body is empty: {filename}")
-    #         continue
+        # TODO: work.org file isn't loading due to an xml error
+        try:
+            docs = loader.load()
+        except Exception as e:
+            print(f"Error: \n{e}")
 
-    #     # Skip anything we don't want indexed
-    #     if set(tags).intersection(set(SKIP_NOTES_WITH_TAGS)):
-    #         print(f"Skipping note because it contains skippable tags: {filename} {tags}")
-    #         continue
+        sources.extend(docs)
 
-    #     print(f"Indexing {filename}")
-
-    #     doc = Document(
-    #         page_content=body,
-    #         metadata={
-    #             "id": id,
-    #             "links": links,
-    #             "source": filename,
-    #         },
-    #     )
-
-    #     sources.append(doc)
-
-    # index = FAISS.from_documents(
-    #     documents=sources,
-    #     embedding=OpenAIEmbeddings(
-    #         openai_api_key=OPENAI_API_KEY,
-    #     ),
-    # )
-    # index.save_local(
-    #     folder_path=f"{PROJECT_ROOT_DIR}/index",
-    #     index_name="tasks_search",
-    # )
-
+    index = FAISS.from_documents(
+        documents=sources,
+        embedding=OpenAIEmbeddings(
+            openai_api_key=OPENAI_API_KEY,
+        ),
+    )
+    index.save_local(
+        folder_path=f"{PROJECT_ROOT_DIR}/index",
+        index_name="tasks_search",
+    )
 
 
 class ChatCmd(cmd.Cmd):
@@ -343,8 +351,7 @@ if __name__ == '__main__':
                 build_search_index_and_embeddings(path)
                 print("Indexing complete!")
             elif sub_command == IndexSubCommand.Tasks:
-                file = sys.argv[3]
-                build_task_search_index_and_embeddings(file)
+                build_task_search_index_and_embeddings()
                 print("Indexing complete!")
             else:
                 print(f"Unknown sub-command \"{sub_command}\"")
