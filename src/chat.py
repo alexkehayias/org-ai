@@ -213,6 +213,8 @@ def build_search_index_and_embeddings(path):
             page_content=body,
             metadata={
                 "id": id,
+                "title": title,
+                "tags": tags,
                 "links": links,
                 "source": filename,
             },
