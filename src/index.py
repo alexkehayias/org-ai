@@ -6,10 +6,30 @@ from enum import Enum
 
 from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores.faiss import FAISS
+from langchain.vectorstores import FAISS, Chroma, utils
 from langchain.document_loaders import UnstructuredOrgModeLoader
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
+
+
+OPENAI_EMBEDDINGS = OpenAIEmbeddings(
+    openai_api_key=OPENAI_API_KEY,
+)
+
+
+def search_index():
+    return FAISS.load_local(
+        folder_path=f"{PROJECT_ROOT_DIR}/index",
+        index_name="notes_search",
+        embeddings=OPENAI_EMBEDDINGS
+    )
+
+
+def task_index():
+    return Chroma(
+        persist_directory=f"{PROJECT_ROOT_DIR}/index",
+        embedding_function=OPENAI_EMBEDDINGS
+    )
 
 
 def extract_links_and_replace_text(text):
@@ -103,16 +123,13 @@ def build_search_index_and_embeddings(path):
 
         sources.append(doc)
 
-    index = FAISS.from_documents(
+    index = Chroma.from_documents(
         documents=sources,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
         ),
     )
-    index.save_local(
-        folder_path=f"{PROJECT_ROOT_DIR}/index",
-        index_name="notes_search",
-    )
+    index.persist()
 
 
 def build_task_search_index_and_embeddings():
@@ -155,18 +172,16 @@ def build_task_search_index_and_embeddings():
         except Exception as e:
             print(f"Error: \n{e}")
 
-        sources.extend(docs)
+        sources.extend(utils.filter_complex_metadata(docs))
 
-    index = FAISS.from_documents(
+    index = Chroma.from_documents(
+        persist_directory=f"{PROJECT_ROOT_DIR}/index",
         documents=sources,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
         ),
     )
-    index.save_local(
-        folder_path=f"{PROJECT_ROOT_DIR}/index",
-        index_name="tasks_search",
-    )
+    index.persist()
 
 
 class Command(str, Enum):

@@ -3,20 +3,21 @@ import sys
 from typing import List
 
 from langchain.agents import AgentType, Tool, initialize_agent
+from langchain.retrievers.self_query.base import SelfQueryRetriever
+from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import MessagesPlaceholder, PromptTemplate
 from langchain.tools import format_tool_to_openai_function
 from langchain.utilities import SerpAPIWrapper
-from langchain.vectorstores.faiss import FAISS
 from langchain.agents.agent_toolkits import PlayWrightBrowserToolkit
 from langchain.tools.playwright.utils import (
     create_sync_playwright_browser,
 )
 
-from config import PROJECT_ROOT_DIR, OPENAI_API_KEY, SERP_API_KEY
+from config import OPENAI_API_KEY, SERP_API_KEY
+from index import search_index, task_index
 
 
 BROWSER = create_sync_playwright_browser()
@@ -39,33 +40,15 @@ SUMMARIES:
 =========
 ANSWER:
 """
+
+
 NOTES_PROMPT = PromptTemplate(
     template=NOTES_TEMPLATE, input_variables=["summaries", "question"]
 )
 
 
-def search_index():
-    return FAISS.load_local(
-        folder_path=f"{PROJECT_ROOT_DIR}/index",
-        index_name="notes_search",
-        embeddings=OpenAIEmbeddings(
-            openai_api_key=OPENAI_API_KEY,
-        ),
-    )
-
-
-def task_index():
-    return FAISS.load_local(
-        folder_path=f"{PROJECT_ROOT_DIR}/index",
-        index_name="tasks_search",
-        embeddings=OpenAIEmbeddings(
-            openai_api_key=OPENAI_API_KEY,
-        ),
-    )
-
-
-def _gpt_answer(index, question, **kwargs):
-    print(f"_gpt_answer got additional kwargs: {kwargs}")
+def gpt_answer_notes(question, **kwargs):
+    index = search_index()
     result = NOTES_CHAIN(
         {
             "input_documents": index.similarity_search(question, k=4),
@@ -78,14 +61,32 @@ def _gpt_answer(index, question, **kwargs):
     return result["output_text"]
 
 
-def gpt_answer_notes(question, **kwargs):
-    index = search_index()
-    return _gpt_answer(index, question, **kwargs)
+TASK_METADATA = [
+    AttributeInfo(
+        name="heading",
+        description="The heading of the task",
+        type="string",
+    ),
+    AttributeInfo(
+        name="status",
+        description="The status of the task",
+        type="string",
+    ),
+]
 
 
-def gpt_answer_tasks(question, **kwargs):
+def gpt_answer_tasks(question):
     index = task_index()
-    return _gpt_answer(index, question, **kwargs)
+    document_content_description = "Tasks"
+    retriever = SelfQueryRetriever.from_llm(
+        LLM,
+        index,
+        document_content_description,
+        TASK_METADATA,
+        verbose=True
+    )
+
+    return retriever.get_relevant_documents(question)
 
 
 LLM = ChatOpenAI(
