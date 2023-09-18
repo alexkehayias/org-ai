@@ -4,6 +4,7 @@ import glob
 import re
 from enum import Enum
 
+import chromadb
 from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS, Chroma, utils
@@ -26,9 +27,14 @@ def search_index():
 
 
 def task_index():
-    return Chroma(
+    client_settings = chromadb.config.Settings(
+        is_persistent=True,
         persist_directory=f"{PROJECT_ROOT_DIR}/index",
-        embedding_function=OPENAI_EMBEDDINGS
+        anonymized_telemetry=False,
+    )
+    return Chroma(
+        client_settings=client_settings,
+        embedding_function=OPENAI_EMBEDDINGS,
     )
 
 
@@ -174,8 +180,13 @@ def build_task_search_index_and_embeddings():
 
         sources.extend(utils.filter_complex_metadata(docs))
 
-    index = Chroma.from_documents(
+    client_settings = chromadb.config.Settings(
+        is_persistent=True,
         persist_directory=f"{PROJECT_ROOT_DIR}/index",
+        anonymized_telemetry=False,
+    )
+    index = Chroma.from_documents(
+        client_settings = client_settings,
         documents=sources,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
