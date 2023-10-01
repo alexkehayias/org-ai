@@ -138,16 +138,12 @@ def build_search_index_and_embeddings(path):
     index.persist()
 
 
-def build_task_search_index_and_embeddings():
+def org_agenda_files(emacs_customization_file: str):
     """
-    Builds a search index for org-agenda tasks based on vectors of
-    embeddings.
+    Get the list of agenda files by reading a customizations file for
+    emacs. By default, this file is located in
+    ~/.emacs.d/.customizations.el
     """
-
-    # Get the list of agenda files by reading the default
-    # customizations file for emacs
-    emacs_customization_file = os.path.expanduser(f"~/.emacs.d/.customizations.el")
-
     agenda_files = []
     with open(emacs_customization_file) as f:
         found = False
@@ -166,6 +162,17 @@ def build_task_search_index_and_embeddings():
                 # value we were looking for
                 found = True
                 continue
+
+    return agenda_files
+
+
+def build_task_search_index_and_embeddings():
+    """
+    Builds a search index for org-agenda tasks based on vectors of
+    embeddings.
+    """
+    emacs_customization_file = os.path.expanduser(f"~/.emacs.d/.customizations.el")
+    agenda_files = org_agenda_files(emacs_customization_file)
 
     sources = []
     for filename in agenda_files:
