@@ -63,13 +63,38 @@ def gpt_answer_notes(question, **kwargs):
 
 TASK_METADATA = [
     AttributeInfo(
-        name="heading",
-        description="The heading of the task",
+        name="title",
+        description="The title of the task, meeting, or heading",
         type="string",
     ),
     AttributeInfo(
         name="status",
-        description="The status of the task",
+        description="The status of the task if available",
+        type="string",
+    ),
+    AttributeInfo(
+        name="is_task",
+        description="Whether this is a task or not",
+        type="bool",
+    ),
+    AttributeInfo(
+        name="is_meeting",
+        description="Whether this is a meeting or not",
+        type="bool",
+    ),
+    AttributeInfo(
+        name="created_date",
+        description="The date the task or meeting was created as an ISO formatted date string",
+        type="string",
+    ),
+    AttributeInfo(
+        name="deadline",
+        description="The date the task is due as an ISO formatted date string",
+        type="string",
+    ),
+    AttributeInfo(
+        name="scheduled",
+        description="The date the task is scheduled to be done as an ISO formatted date string",
         type="string",
     ),
 ]
