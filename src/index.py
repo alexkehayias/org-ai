@@ -2,13 +2,16 @@ import os
 import sys
 import glob
 import re
+import hashlib
 from enum import Enum
+from datetime import datetime
 
 import chromadb
 from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS, Chroma, utils
-from langchain.document_loaders import UnstructuredOrgModeLoader
+# from langchain.document_loaders import UnstructuredOrgModeLoader
+import orgparse
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
 
@@ -16,6 +19,20 @@ from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
 OPENAI_EMBEDDINGS = OpenAIEmbeddings(
     openai_api_key=OPENAI_API_KEY,
 )
+TASK_DOC_COLLECTION_NAME = "tasks_v1"
+TASK_INDEX_CHROMA_CLIENT_SETTINGS = chromadb.config.Settings(
+    is_persistent=True,
+    persist_directory=f"{PROJECT_ROOT_DIR}/index",
+    anonymized_telemetry=False,
+)
+
+
+def hash_id(s: str):
+    """
+    Returns a hex encoded hash ID of the string.
+    """
+
+    return hashlib.sha1(s.encode('utf-8')).hexdigest()
 
 
 def search_index():
@@ -27,13 +44,9 @@ def search_index():
 
 
 def task_index():
-    client_settings = chromadb.config.Settings(
-        is_persistent=True,
-        persist_directory=f"{PROJECT_ROOT_DIR}/index",
-        anonymized_telemetry=False,
-    )
     return Chroma(
-        client_settings=client_settings,
+        collection_name=TASK_DOC_COLLECTION_NAME,
+        client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         embedding_function=OPENAI_EMBEDDINGS,
     )
 
@@ -130,6 +143,7 @@ def build_search_index_and_embeddings(path):
         sources.append(doc)
 
     index = Chroma.from_documents(
+        collection_name=TASK_DOC_COLLECTION_NAME,
         documents=sources,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
@@ -166,35 +180,118 @@ def org_agenda_files(emacs_customization_file: str):
     return agenda_files
 
 
+def org_element_to_doc(element, parent_metadata):
+    # TODO: Convert an element into a document
+    # - If it's a TODO add metadata for a task
+    # - If it's a meeting add metadata for that
+    # - If it's an interview
+    title = element.heading
+
+    # Optional metadata
+    org_id = element.properties.get('ID') or hash_id(title)
+    date_list = element.datelist
+    created_date = datetime.strftime(date_list[0].start, '%Y-%m-%d') if date_list else None
+    deadline = datetime.strftime(element.deadline.start, '%Y-%m-%d') if element.deadline else None
+    scheduled = datetime.strftime(element.scheduled.start, '%Y-%m-%d') if element.scheduled else None
+
+    # orgparse includes tags from the parent
+    tags = element.tags
+
+    # TODO: Handle recursion
+    if len(element.children) > 0:
+        pass
+
+    is_task = bool(element.todo)
+    # TODO: this might not work if there is more than one tag
+    is_meeting = 'meeting' in tags
+
+    return Document(
+        page_content=element.body,
+        metadata={
+            'id': org_id,
+            'is_task': is_task,
+            'is_meeting': is_meeting,
+            'parent_id': parent_metadata['id'],
+            # 'element': element,
+            'title': title,
+            'created_date': created_date,
+            'deadline': deadline,
+            'scheduled': scheduled,
+            'status': element.todo,
+        },
+    )
+
+
+def org_task_file_to_docs(file_path: str):
+    # TODO: recursively parse an org tasks file into a collection of
+    # documents. Handles nested elements to better parse org trees.
+    root = orgparse.load(file_path)
+
+    # Parsing filetags doesn't seem to work correctly in orgparse so
+    # we do it manually
+    file_tags = root.get_file_property('filetags')
+    tags = file_tags.split(' ') if file_tags else []
+
+    title = root.get_file_property('title') or file_path
+    org_id = root.properties.get('ID') or hash_id(title)
+    created_date = root.get_file_property('date')
+
+    # Parsing the body of a file root doesn't work correctly in
+    # orgparse (it doesn't remove properties)
+    body = root.body.split('\n')
+    body = [i for i in body if i and not i.startswith('#+')]
+    body = '\n'.join(body)
+    body = f"{title}\n\n{body}"
+
+    is_project = 'project' in tags
+
+    # If this is a project, we know each item is related to the parent
+    if is_project:
+        # TODO handle turning project files into documents
+        for el in root.children:
+            yield org_element_to_doc(
+                el,
+                parent_metadata={
+                    'id': org_id,
+                    'title': title,
+                    'created_date': created_date
+                }
+            )
+
+        # Create the overall document for the project
+        yield Document(
+            page_content=body,
+            metadata={
+                'id': org_id,
+                'title': title,
+                'created_date': created_date,
+                'tags': tags,
+                'source': file_path,
+                # TODO add metadata for child docs
+            },
+        )
+
+
 def build_task_search_index_and_embeddings():
     """
     Builds a search index for org-agenda tasks based on vectors of
     embeddings.
     """
-    emacs_customization_file = os.path.expanduser(f"~/.emacs.d/.customizations.el")
+    emacs_customization_file = os.path.expanduser("~/.emacs.d/.customizations.el")
     agenda_files = org_agenda_files(emacs_customization_file)
 
-    sources = []
+    documents = []
     for filename in agenda_files:
         print(f"Working on {filename}")
-        loader = UnstructuredOrgModeLoader(file_path=filename, mode="elements")
+        for doc in org_task_file_to_docs(file_path=filename):
+            documents.append(doc)
 
-        # TODO: work.org file isn't loading due to an xml error
-        try:
-            docs = loader.load()
-        except Exception as e:
-            print(f"Error: \n{e}")
+    # This is needed because all values in metadata must be strings
+    documents = utils.filter_complex_metadata(documents)
 
-        sources.extend(utils.filter_complex_metadata(docs))
-
-    client_settings = chromadb.config.Settings(
-        is_persistent=True,
-        persist_directory=f"{PROJECT_ROOT_DIR}/index",
-        anonymized_telemetry=False,
-    )
     index = Chroma.from_documents(
-        client_settings = client_settings,
-        documents=sources,
+        client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
+        documents=documents,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
         ),
