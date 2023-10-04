@@ -186,6 +186,7 @@ def org_element_to_doc(element, parent_metadata):
     # - If it's a meeting add metadata for that
     # - If it's an interview
     title = element.heading
+    body = f"{title}\n\n{element.body}"
 
     # Optional metadata
     org_id = element.properties.get('ID') or hash_id(title)
@@ -205,20 +206,22 @@ def org_element_to_doc(element, parent_metadata):
     # TODO: this might not work if there is more than one tag
     is_meeting = 'meeting' in tags
 
+    metadata= {
+        'id': org_id,
+        'is_task': is_task,
+        'is_meeting': is_meeting,
+        'parent_id': parent_metadata['id'],
+        # 'element': element,
+        'title': title,
+        'created_date': created_date,
+        'deadline': deadline,
+        'scheduled': scheduled,
+        'status': element.todo,
+    }
+
     return Document(
-        page_content=element.body,
-        metadata={
-            'id': org_id,
-            'is_task': is_task,
-            'is_meeting': is_meeting,
-            'parent_id': parent_metadata['id'],
-            # 'element': element,
-            'title': title,
-            'created_date': created_date,
-            'deadline': deadline,
-            'scheduled': scheduled,
-            'status': element.todo,
-        },
+        page_content=body,
+        metadata=metadata
     )
 
 
@@ -258,17 +261,19 @@ def org_task_file_to_docs(file_path: str):
                 }
             )
 
+        metadata = {
+            'id': org_id,
+            'title': title,
+            'created_date': created_date,
+            'tags': tags,
+            'source': file_path,
+            # TODO add metadata for child docs
+        }
+
         # Create the overall document for the project
         yield Document(
             page_content=body,
-            metadata={
-                'id': org_id,
-                'title': title,
-                'created_date': created_date,
-                'tags': tags,
-                'source': file_path,
-                # TODO add metadata for child docs
-            },
+            metadata=metadata
         )
 
 

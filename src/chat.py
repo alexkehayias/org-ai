@@ -100,6 +100,13 @@ TASK_METADATA = [
 ]
 
 
+LLM = ChatOpenAI(
+    openai_api_key=OPENAI_API_KEY,
+    model_name="gpt-3.5-turbo-0613",
+    temperature=0,
+)
+
+
 def gpt_answer_tasks(question):
     index = task_index()
     document_content_description = "Tasks"
@@ -112,13 +119,6 @@ def gpt_answer_tasks(question):
     )
 
     return retriever.get_relevant_documents(question)
-
-
-LLM = ChatOpenAI(
-    openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-3.5-turbo-0613",
-    temperature=0,
-)
 
 
 SEARCH = SerpAPIWrapper(
