@@ -97,10 +97,22 @@ TASK_METADATA = [
         description="The date the task is scheduled to be done as an ISO formatted date string",
         type="string",
     ),
+    AttributeInfo(
+        name="tags",
+        description="A list of tags as a comma separated string that categorize the item if available",
+        type="string",
+    ),
 ]
 
 
-LLM = ChatOpenAI(
+AGENT_LLM = ChatOpenAI(
+    openai_api_key=OPENAI_API_KEY,
+    model_name="gpt-4",
+    temperature=0,
+)
+
+
+TASKS_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
     model_name="gpt-3.5-turbo-0613",
     temperature=0,
@@ -111,7 +123,7 @@ def gpt_answer_tasks(question):
     index = task_index()
     document_content_description = "Tasks"
     retriever = SelfQueryRetriever.from_llm(
-        LLM,
+        TASKS_LLM,
         index,
         document_content_description,
         TASK_METADATA,
@@ -141,6 +153,7 @@ TOOLS = [
         name = "Tasks",
         func=gpt_answer_tasks,
         description="Useful for when you need to respond to a question about tasks or todo lists or projects or meetings.",
+
     ),
 ]
 TOOLS += BROWSER_TOOLS
@@ -155,13 +168,14 @@ MEMORY = ConversationBufferMemory(memory_key="memory", return_messages=True)
 AGENT = initialize_agent(
     tools=TOOLS,
     functions=FUNCTIONS,
-    llm=LLM,
+    llm=AGENT_LLM,
     agent=AgentType.OPENAI_FUNCTIONS,
     agent_kwargs = {
         "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
     },
     memory=MEMORY,
-    verbose=True
+    verbose=True,
+    max_iterations=2,
 )
 
 
