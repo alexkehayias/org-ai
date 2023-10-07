@@ -45,7 +45,8 @@ def search_index():
 
 def task_index():
     return Chroma(
-        collection_name=TASK_DOC_COLLECTION_NAME,
+        persist_directory=f"{PROJECT_ROOT_DIR}/index",
+#        collection_name=TASK_DOC_COLLECTION_NAME,
         client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         embedding_function=OPENAI_EMBEDDINGS,
     )
@@ -143,7 +144,8 @@ def build_search_index_and_embeddings(path):
         sources.append(doc)
 
     index = Chroma.from_documents(
-        collection_name=TASK_DOC_COLLECTION_NAME,
+        persist_directory=f"{PROJECT_ROOT_DIR}/index",
+#        collection_name=TASK_DOC_COLLECTION_NAME,
         documents=sources,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
@@ -180,7 +182,7 @@ def org_agenda_files(emacs_customization_file: str):
     return agenda_files
 
 
-def org_element_to_doc(element, parent_metadata):
+def org_element_to_doc(element, parent_metadata=None):
     # TODO: Convert an element into a document
     # - If it's a TODO add metadata for a task
     # - If it's a meeting add metadata for that
@@ -195,23 +197,25 @@ def org_element_to_doc(element, parent_metadata):
     deadline = datetime.strftime(element.deadline.start, '%Y-%m-%d') if element.deadline else None
     scheduled = datetime.strftime(element.scheduled.start, '%Y-%m-%d') if element.scheduled else None
 
-    # orgparse includes tags from the parent
-    tags = element.tags
+    # Clean up tags from orgparse which doesn't split by space
+    # Note: also includes tags from the parent element
+    tags = element.tags or []
+    tags = [i for t in element.tags for i in t.split(' ')]
 
     # TODO: Handle recursion
-    if len(element.children) > 0:
-        pass
+    # if len(element.children) > 0:
+    #     pass
 
     is_task = bool(element.todo)
-    # TODO: this might not work if there is more than one tag
     is_meeting = 'meeting' in tags
 
     metadata= {
         'id': org_id,
         'is_task': is_task,
         'is_meeting': is_meeting,
-        'parent_id': parent_metadata['id'],
-        # 'element': element,
+        'parent_id': parent_metadata['id'] if parent_metadata else None,
+        # Chroma can't do arrays for metadata so change this to a string
+        'tags': ', '.join(tags),
         'title': title,
         'created_date': created_date,
         'deadline': deadline,
@@ -275,6 +279,10 @@ def org_task_file_to_docs(file_path: str):
             page_content=body,
             metadata=metadata
         )
+
+    # Otherwise, we know each heading is independent
+    for el in root.children:
+        yield org_element_to_doc(el)
 
 
 def build_task_search_index_and_embeddings():
