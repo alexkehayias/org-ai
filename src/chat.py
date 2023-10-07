@@ -145,15 +145,14 @@ TOOLS = [
         description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term.",
     ),
     Tool(
-        name = "Notes",
-        func=gpt_answer_notes,
-        description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename.",
-    ),
-    Tool(
         name = "Tasks",
         func=gpt_answer_tasks,
         description="Useful for when you need to respond to a question about tasks or todo lists or projects or meetings.",
-
+    ),
+    Tool(
+        name = "Notes",
+        func=gpt_answer_notes,
+        description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename.",
     ),
 ]
 TOOLS += BROWSER_TOOLS
