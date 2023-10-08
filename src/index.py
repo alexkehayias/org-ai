@@ -323,13 +323,16 @@ class IndexSubCommand(str, Enum):
 
 if __name__ == '__main__':
     args = sys.argv
-    command = sys.argv[1]
-    if command == IndexSubCommand.Notes:
-        path = sys.argv[2]
-        build_search_index_and_embeddings(path)
-        print("Indexing complete!")
-    elif command == IndexSubCommand.Tasks:
-        build_task_search_index_and_embeddings()
-        print("Indexing complete!")
+    if len(args) == 1:
+        pass
     else:
-        print(f"Unknown sub-command \"{command}\"")
+        command = args[1]
+        if command == IndexSubCommand.Notes:
+            path = sys.argv[2]
+            build_search_index_and_embeddings(path)
+            print("Indexing complete!")
+        elif command == IndexSubCommand.Tasks:
+            build_task_search_index_and_embeddings()
+            print("Indexing complete!")
+        else:
+            print(f"Unknown sub-command \"{command}\"")
