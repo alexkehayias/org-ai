@@ -9,7 +9,7 @@ from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import MessagesPlaceholder, PromptTemplate
-from langchain.tools import format_tool_to_openai_function
+from langchain.tools import format_tool_to_openai_function, BaseTool
 from langchain.utilities import SerpAPIWrapper
 from langchain.agents.agent_toolkits import PlayWrightBrowserToolkit
 from langchain.tools.playwright.utils import (
@@ -44,6 +44,17 @@ ANSWER:
 
 NOTES_PROMPT = PromptTemplate(
     template=NOTES_TEMPLATE, input_variables=["summaries", "question"]
+)
+
+
+NOTES_CHAIN = load_qa_with_sources_chain(
+    ChatOpenAI(
+        openai_api_key=OPENAI_API_KEY,
+        model_name="gpt-3.5-turbo-0613",
+        temperature=0,
+    ),
+    chain_type="stuff",
+    prompt=NOTES_PROMPT,
 )
 
 
@@ -134,11 +145,12 @@ def gpt_answer_tasks(question):
 
 
 SEARCH = SerpAPIWrapper(
-    serpapi_api_key = SERP_API_KEY
+    serpapi_api_key = SERP_API_KEY,
+    search_engine="google",
 )
 
 
-TOOLS = [
+TOOLS: List[Tool|BaseTool] = [
     Tool(
         name = "Search",
         func=SEARCH.run,
@@ -174,18 +186,7 @@ AGENT = initialize_agent(
     },
     memory=MEMORY,
     verbose=True,
-    max_iterations=2,
-)
-
-
-NOTES_CHAIN = load_qa_with_sources_chain(
-    ChatOpenAI(
-        openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-3.5-turbo-0613",
-        temperature=0,
-    ),
-    chain_type="stuff",
-    prompt=NOTES_PROMPT,
+    max_iterations=4,
 )
 
 

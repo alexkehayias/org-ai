@@ -10,7 +10,6 @@ import chromadb
 from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS, Chroma, utils
-# from langchain.document_loaders import UnstructuredOrgModeLoader
 import orgparse
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
@@ -245,9 +244,9 @@ def org_task_file_to_docs(file_path: str):
 
     # Parsing the body of a file root doesn't work correctly in
     # orgparse (it doesn't remove properties)
-    body = root.body.split('\n')
-    body = [i for i in body if i and not i.startswith('#+')]
-    body = '\n'.join(body)
+    lines = root.body.split('\n')
+    lines = [i for i in lines if i and not i.startswith('#+')]
+    body = '\n'.join(lines)
     body = f"{title}\n\n{body}"
 
     is_project = 'project' in tags
