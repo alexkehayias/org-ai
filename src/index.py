@@ -12,6 +12,7 @@ from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS, Chroma, utils
 import orgparse
+from orgparse import OrgNode
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
 
@@ -52,7 +53,7 @@ def task_index() -> Chroma:
     )
 
 
-def extract_links_and_replace_text(text) -> Tuple[List[str], str]:
+def extract_links_and_replace_text(text: str) -> Tuple[List[str], str]:
     regex = r'\[\[id:(.+?)\]\[(.+?)\]\]'
     matches = re.findall(regex, text)
     for match in matches:
@@ -111,7 +112,7 @@ SKIP_NOTES_WITH_TAGS = [
 ]
 
 
-def build_search_index_and_embeddings(path: str):
+def build_search_index_and_embeddings(path: str) -> None:
     """
     Builds a search index based on vectors of embeddings.
     """
@@ -182,7 +183,9 @@ def org_agenda_files(emacs_customization_file: str) -> List[str]:
     return agenda_files
 
 
-def org_element_to_doc(element, parent_metadata: Optional[dict]=None) -> Document:
+def org_element_to_doc(
+    element: OrgNode, parent_metadata: Optional[dict[str, Optional[str]]]=None
+) -> Document:
     # TODO: Convert an element into a document
     # - If it's a TODO add metadata for a task
     # - If it's a meeting add metadata for that
@@ -199,8 +202,8 @@ def org_element_to_doc(element, parent_metadata: Optional[dict]=None) -> Documen
 
     # Clean up tags from orgparse which doesn't split by space
     # Note: also includes tags from the parent element
-    tags = element.tags or []
-    tags = [i for t in element.tags for i in t.split(' ')]
+    element_tags: set[str] = element.tags or set()
+    tags = [i for t in element_tags for i in t.split(' ')]
 
     # TODO: Handle recursion
     # if len(element.children) > 0:
@@ -285,7 +288,7 @@ def org_task_file_to_docs(file_path: str) -> Iterator[Document]:
         yield org_element_to_doc(el)
 
 
-def build_task_search_index_and_embeddings():
+def build_task_search_index_and_embeddings() -> None:
     """
     Builds a search index for org-agenda tasks based on vectors of
     embeddings.

@@ -68,8 +68,8 @@ def gpt_answer_notes(question: str) -> str:
         },
         return_only_outputs=True,
     )
-
-    return result["output_text"]
+    result_str: str = result["output_text"]
+    return result_str
 
 
 TASK_METADATA = [
@@ -194,10 +194,10 @@ class ChatCmd(cmd.Cmd):
     prompt = '> '
     commands: List[str] = []
 
-    def do_list(self, line: str):
+    def do_list(self, line: str) -> None:
         print(self.commands)
 
-    def default(self, line: str):
+    def default(self, line: str) -> None:
         answer = AGENT.run(input=line)
         print(answer)
         # Write your code here by handling the input entered
