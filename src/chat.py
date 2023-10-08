@@ -7,6 +7,7 @@ from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chat_models import ChatOpenAI
+from langchain.docstore.document import Document
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import MessagesPlaceholder, PromptTemplate
 from langchain.tools import format_tool_to_openai_function, BaseTool
@@ -58,13 +59,12 @@ NOTES_CHAIN = load_qa_with_sources_chain(
 )
 
 
-def gpt_answer_notes(question, **kwargs):
+def gpt_answer_notes(question: str) -> str:
     index = search_index()
     result = NOTES_CHAIN(
         {
             "input_documents": index.similarity_search(question, k=4),
             "question": question,
-            **kwargs
         },
         return_only_outputs=True,
     )
@@ -130,7 +130,7 @@ TASKS_LLM = ChatOpenAI(
 )
 
 
-def gpt_answer_tasks(question):
+def gpt_answer_tasks(question: str) -> List[Document]:
     index = task_index()
     document_content_description = "Tasks"
     retriever = SelfQueryRetriever.from_llm(
@@ -194,16 +194,16 @@ class ChatCmd(cmd.Cmd):
     prompt = '> '
     commands: List[str] = []
 
-    def do_list(self, line):
+    def do_list(self, line: str):
         print(self.commands)
 
-    def default(self, line):
+    def default(self, line: str):
         answer = AGENT.run(input=line)
         print(answer)
         # Write your code here by handling the input entered
         self.commands.append(line)
 
-    def do_exit(self, line):
+    def do_exit(self, line: str) -> bool:
         return True
 
 

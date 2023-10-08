@@ -5,6 +5,7 @@ import re
 import hashlib
 from enum import Enum
 from datetime import datetime
+from typing import List, Tuple, Optional, Iterator
 
 import chromadb
 from langchain.docstore.document import Document
@@ -26,7 +27,7 @@ TASK_INDEX_CHROMA_CLIENT_SETTINGS = chromadb.config.Settings(
 )
 
 
-def hash_id(s: str):
+def hash_id(s: str) -> str:
     """
     Returns a hex encoded hash ID of the string.
     """
@@ -34,7 +35,7 @@ def hash_id(s: str):
     return hashlib.sha1(s.encode('utf-8')).hexdigest()
 
 
-def search_index():
+def search_index() -> FAISS:
     return FAISS.load_local(
         folder_path=f"{PROJECT_ROOT_DIR}/index",
         index_name="notes_search",
@@ -42,7 +43,7 @@ def search_index():
     )
 
 
-def task_index():
+def task_index() -> Chroma:
     return Chroma(
         persist_directory=f"{PROJECT_ROOT_DIR}/index",
 #        collection_name=TASK_DOC_COLLECTION_NAME,
@@ -51,7 +52,7 @@ def task_index():
     )
 
 
-def extract_links_and_replace_text(text):
+def extract_links_and_replace_text(text) -> Tuple[List[str], str]:
     regex = r'\[\[id:(.+?)\]\[(.+?)\]\]'
     matches = re.findall(regex, text)
     for match in matches:
@@ -59,7 +60,7 @@ def extract_links_and_replace_text(text):
     return matches, text
 
 
-def extract_note(file_path):
+def extract_note(file_path: str) -> Tuple[str, str, List[str], str, List[str]]:
     with open(file_path, 'r') as f:
         lines = f.readlines()
 
@@ -110,7 +111,7 @@ SKIP_NOTES_WITH_TAGS = [
 ]
 
 
-def build_search_index_and_embeddings(path):
+def build_search_index_and_embeddings(path: str):
     """
     Builds a search index based on vectors of embeddings.
     """
@@ -153,7 +154,7 @@ def build_search_index_and_embeddings(path):
     index.persist()
 
 
-def org_agenda_files(emacs_customization_file: str):
+def org_agenda_files(emacs_customization_file: str) -> List[str]:
     """
     Get the list of agenda files by reading a customizations file for
     emacs. By default, this file is located in
@@ -181,7 +182,7 @@ def org_agenda_files(emacs_customization_file: str):
     return agenda_files
 
 
-def org_element_to_doc(element, parent_metadata=None):
+def org_element_to_doc(element, parent_metadata: Optional[dict]=None) -> Document:
     # TODO: Convert an element into a document
     # - If it's a TODO add metadata for a task
     # - If it's a meeting add metadata for that
@@ -228,7 +229,7 @@ def org_element_to_doc(element, parent_metadata=None):
     )
 
 
-def org_task_file_to_docs(file_path: str):
+def org_task_file_to_docs(file_path: str) -> Iterator[Document]:
     # TODO: recursively parse an org tasks file into a collection of
     # documents. Handles nested elements to better parse org trees.
     root = orgparse.load(file_path)
