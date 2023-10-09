@@ -138,31 +138,31 @@ def gpt_answer_tasks(question: str) -> List[Document]:
         index,
         document_content_description,
         TASK_METADATA,
-        verbose=True
+        verbose=True,
     )
 
     return retriever.get_relevant_documents(question)
 
 
 SEARCH = SerpAPIWrapper(
-    serpapi_api_key = SERP_API_KEY,
+    serpapi_api_key=SERP_API_KEY,
     search_engine="google",
 )
 
 
-TOOLS: List[Tool|BaseTool] = [
+TOOLS: List[Tool | BaseTool] = [
     Tool(
-        name = "Search",
+        name="Search",
         func=SEARCH.run,
         description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term.",
     ),
     Tool(
-        name = "Tasks",
+        name="Tasks",
         func=gpt_answer_tasks,
         description="Useful for when you need to respond to a question about tasks or todo lists or projects or meetings.",
     ),
     Tool(
-        name = "Notes",
+        name="Notes",
         func=gpt_answer_notes,
         description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename.",
     ),
@@ -181,7 +181,7 @@ AGENT = initialize_agent(
     functions=FUNCTIONS,
     llm=AGENT_LLM,
     agent=AgentType.OPENAI_FUNCTIONS,
-    agent_kwargs = {
+    agent_kwargs={
         "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
     },
     memory=MEMORY,
@@ -191,7 +191,7 @@ AGENT = initialize_agent(
 
 
 class ChatCmd(cmd.Cmd):
-    prompt = '> '
+    prompt = "> "
     commands: List[str] = []
 
     def do_list(self, line: str) -> None:
@@ -207,6 +207,6 @@ class ChatCmd(cmd.Cmd):
         return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = sys.argv
     ChatCmd().cmdloop()

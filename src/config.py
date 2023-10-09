@@ -6,7 +6,7 @@ PROJECT_ROOT_DIR = os.path.abspath(
 )
 
 
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
-SERP_API_KEY = os.getenv('SERP_API_KEY')
+SERP_API_KEY = os.getenv("SERP_API_KEY")
