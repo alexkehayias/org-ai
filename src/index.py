@@ -270,7 +270,6 @@ def org_task_file_to_docs(file_path: str) -> Iterator[Document]:
 
     # If this is a project, we know each item is related to the parent
     if is_project:
-        # TODO handle turning project files into documents
         for el in root.children:
             yield org_element_to_doc(
                 el,

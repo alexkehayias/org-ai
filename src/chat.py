@@ -51,7 +51,7 @@ NOTES_PROMPT = PromptTemplate(
 NOTES_CHAIN = load_qa_with_sources_chain(
     ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-3.5-turbo-0613",
+        model_name="gpt-4-1106-preview",
         temperature=0,
     ),
     chain_type="stuff",
@@ -118,14 +118,14 @@ TASK_METADATA = [
 
 AGENT_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-4",
+    model_name="gpt-4-1106-preview",
     temperature=0,
 )
 
 
 TASKS_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-3.5-turbo-0613",
+    model_name="gpt-4-1106-preview",
     temperature=0,
 )
 
@@ -141,7 +141,7 @@ def gpt_answer_tasks(question: str) -> List[Document]:
         verbose=True,
     )
 
-    return retriever.get_relevant_documents(question)
+    return retriever.get_relevant_documents(question) or []
 
 
 SEARCH = SerpAPIWrapper(
@@ -159,12 +159,17 @@ TOOLS: List[Tool | BaseTool] = [
     Tool(
         name="Tasks",
         func=gpt_answer_tasks,
-        description="Useful for when you need to respond to a question about tasks or todo lists or projects or meetings.",
+        description="Useful for when you need to respond to a question about tasks or todo lists or projects.",
+    ),
+    Tool(
+        name="Meetings",
+        func=gpt_answer_tasks,
+        description="Useful for when you need to respond to a question about meetings.",
     ),
     Tool(
         name="Notes",
         func=gpt_answer_notes,
-        description="Useful for when you need to respond to a question about my notes or something I've written about before. The input to this should be a question or a phrase. If the input is a filename, only return content for the note that matches the filename.",
+        description="Useful for when you need to respond to a question about my notes or something I've written about before.",
     ),
 ]
 TOOLS += BROWSER_TOOLS
