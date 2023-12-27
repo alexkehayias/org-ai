@@ -13,7 +13,7 @@ from langchain.prompts import MessagesPlaceholder, PromptTemplate
 from langchain.tools import format_tool_to_openai_function, BaseTool
 from langchain.utilities import SerpAPIWrapper
 from langchain.agents.agent_toolkits import PlayWrightBrowserToolkit
-from langchain.tools.playwright.utils import (
+from langchain_community.tools.playwright.utils import (
     create_sync_playwright_browser,
 )
 
