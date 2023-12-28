@@ -6,6 +6,10 @@ from langchain.agents import AgentType, Tool, initialize_agent
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+from langchain.chains.query_constructor.base import (
+    StructuredQueryOutputParser,
+    get_query_constructor_prompt,
+)
 from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.memory import ConversationBufferMemory
@@ -16,6 +20,7 @@ from langchain.agents.agent_toolkits import PlayWrightBrowserToolkit
 from langchain_community.tools.playwright.utils import (
     create_sync_playwright_browser,
 )
+from langchain.retrievers.self_query.chroma import ChromaTranslator
 
 from config import OPENAI_API_KEY, SERP_API_KEY
 from index import search_index, task_index
@@ -95,18 +100,18 @@ TASK_METADATA = [
     ),
     AttributeInfo(
         name="created_date",
-        description="The date the task or meeting was created as an ISO formatted date string",
-        type="string",
+        description="The timestamp the task or meeting was created formatted as an integer",
+        type="int",
     ),
     AttributeInfo(
         name="deadline",
-        description="The date the task is due as an ISO formatted date string",
-        type="string",
+        description="The timestamp the task is due",
+        type="int",
     ),
     AttributeInfo(
         name="scheduled",
-        description="The date the task is scheduled to be done as an ISO formatted date string",
-        type="string",
+        description="The timestamp the task is scheduled",
+        type="int",
     ),
     AttributeInfo(
         name="tags",
@@ -130,14 +135,56 @@ TASKS_LLM = ChatOpenAI(
 )
 
 
+TASKS_SCHEMA = """\
+<< Structured Request Schema >>
+When responding use a markdown code snippet with a JSON object formatted in the following schema:
+
+```json
+{{{{
+    "query": string \\ text string to compare to document contents
+    "filter": string \\ logical condition statement for filtering documents
+}}}}
+```
+
+The query string should contain only text that is expected to match the contents of documents. Any conditions in the filter should not be mentioned in the query as well.
+
+A logical condition statement is composed of one or more comparison and logical operation statements.
+
+A comparison statement takes the form: `comp(attr, val)`:
+- `comp` ({allowed_comparators}): comparator
+- `attr` (string):  name of attribute to apply the comparison to
+- `val` (string): is the comparison value
+
+A logical operation statement takes the form `op(statement1, statement2, ...)`:
+- `op` ({allowed_operators}): logical operator
+- `statement1`, `statement2`, ... (comparison statements or logical operation statements): one or more statements to apply the operation to
+
+Make sure that you only use the comparators and logical operators listed above and no others.
+Make sure that filters only refer to attributes that exist in the data source.
+Make sure that filters only use the attributed names with its function names if there are functions applied on them.
+Make sure that filters only use timestamp in seconds as an integer when handling date data typed values. If you need to convert them, translate the date into a unix epoch timstamp with UTC timezone and double check that it is the correct year. NEVER use the `eq` operator for timestamps, if the requested date is a single day, use the `gte` operator for the requested date AND a `lte` operator for the requested date plus one day. Be very careful with dates.
+Make sure that filters take into account the descriptions of attributes and only make comparisons that are feasible given the type of data being stored.
+Make sure that filters are only used as needed. If there are no filters that should be applied return "NO_FILTER" for the filter value.\
+"""
+TASKS_SCHEMA_PROMPT = PromptTemplate.from_template(TASKS_SCHEMA)
+
 def gpt_answer_tasks(question: str) -> List[Document]:
     index = task_index()
-    document_content_description = "Tasks"
-    retriever = SelfQueryRetriever.from_llm(
-        TASKS_LLM,
-        index,
-        document_content_description,
-        TASK_METADATA,
+
+    prompt = get_query_constructor_prompt(
+        document_contents="My tasks",
+        attribute_info=TASK_METADATA,
+        schema_prompt=TASKS_SCHEMA_PROMPT,
+    )
+    output_parser = StructuredQueryOutputParser.from_components()
+    query_constructor = prompt | TASKS_LLM | output_parser
+
+    print(query_constructor.invoke({"query": question}))
+
+    retriever = SelfQueryRetriever(
+        query_constructor=query_constructor,
+        structured_query_translator=ChromaTranslator(),
+        vectorstore=index,
         verbose=True,
     )
 

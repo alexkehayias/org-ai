@@ -4,7 +4,7 @@ import glob
 import re
 import hashlib
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, date, timezone
 from typing import List, Tuple, Optional, Iterator
 
 import chromadb
@@ -13,6 +13,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS, Chroma, utils
 import orgparse
 from orgparse import OrgNode
+from orgparse.date import OrgDate
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
 
@@ -46,8 +47,6 @@ def search_index() -> FAISS:
 
 def task_index() -> Chroma:
     return Chroma(
-        persist_directory=f"{PROJECT_ROOT_DIR}/index",
-        #        collection_name=TASK_DOC_COLLECTION_NAME,
         client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         embedding_function=OPENAI_EMBEDDINGS,
     )
@@ -149,8 +148,7 @@ def build_search_index_and_embeddings(path: str) -> None:
         sources.append(doc)
 
     index = Chroma.from_documents(
-        persist_directory=f"{PROJECT_ROOT_DIR}/index",
-        #        collection_name=TASK_DOC_COLLECTION_NAME,
+        client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         documents=sources,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
@@ -189,6 +187,22 @@ def org_agenda_files(emacs_customization_file: str) -> List[str]:
     return agenda_files
 
 
+def orgdate_to_timestamp(d: OrgDate) -> int:
+    """
+    Returns a date timestamp (not a datetime!) from an `OrgDate`.
+    """
+    start = d.start
+    out = None
+    if isinstance(start, datetime):
+        # Also change timezone to UTC
+        out = datetime.strftime(start.replace(tzinfo=timezone.utc).date(), "%s")
+    elif isinstance(start, date):
+        out = datetime.strftime(start, "%s")
+    else:
+        raise Exception(f"Unknown date type {type(start)}")
+    return int(out)
+
+
 def org_element_to_doc(
     element: OrgNode, parent_metadata: Optional[dict[str, Optional[str]]] = None
 ) -> Document:
@@ -201,20 +215,14 @@ def org_element_to_doc(
 
     # Optional metadata
     org_id = element.properties.get("ID") or hash_id(title)
+
+    # All dates need to be timestamp integers
     date_list = element.datelist
-    created_date = (
-        datetime.strftime(date_list[0].start, "%Y-%m-%d") if date_list else None
-    )
-    deadline = (
-        datetime.strftime(element.deadline.start, "%Y-%m-%d")
-        if element.deadline
-        else None
-    )
-    scheduled = (
-        datetime.strftime(element.scheduled.start, "%Y-%m-%d")
-        if element.scheduled
-        else None
-    )
+
+    # Normalize dates since they can be a datetime or a date
+    created_date = orgdate_to_timestamp(date_list[0]) if date_list else None
+    deadline = orgdate_to_timestamp(element.deadline) if element.deadline else None
+    scheduled = orgdate_to_timestamp(element.scheduled) if element.scheduled else None
 
     # Clean up tags from orgparse which doesn't split by space
     # Note: also includes tags from the parent element
