@@ -117,7 +117,7 @@ def build_search_index_and_embeddings(path: str) -> None:
     """
     Builds a search index based on vectors of embeddings.
     """
-    sources = []
+    documents = []
     for filename in glob.glob(f"{path}/*.org"):
         id, title, tags, body, links = extract_note(filename)
 
@@ -145,11 +145,14 @@ def build_search_index_and_embeddings(path: str) -> None:
             },
         )
 
-        sources.append(doc)
+        documents.append(doc)
+
+    # This is needed because all values in metadata must be strings
+    documents = utils.filter_complex_metadata(documents)
 
     index = Chroma.from_documents(
         client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
-        documents=sources,
+        documents=documents,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
         ),

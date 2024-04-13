@@ -56,7 +56,7 @@ NOTES_PROMPT = PromptTemplate(
 NOTES_CHAIN = load_qa_with_sources_chain(
     ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-4-1106-preview",
+        model_name="gpt-4",
         temperature=0,
     ),
     chain_type="stuff",
@@ -123,14 +123,14 @@ TASK_METADATA = [
 
 AGENT_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-4-1106-preview",
+    model_name="gpt-4",
     temperature=0,
 )
 
 
 TASKS_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-4-1106-preview",
+    model_name="gpt-4",
     temperature=0,
 )
 
