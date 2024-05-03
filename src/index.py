@@ -21,6 +21,12 @@ from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
 OPENAI_EMBEDDINGS = OpenAIEmbeddings(
     openai_api_key=OPENAI_API_KEY,
 )
+NOTE_DOC_COLLECTION_NAME = "notes_v1"
+NOTE_INDEX_CHROMA_CLIENT_SETTINGS = chromadb.config.Settings(
+    is_persistent=True,
+    persist_directory=f"{PROJECT_ROOT_DIR}/index",
+    anonymized_telemetry=False,
+)
 TASK_DOC_COLLECTION_NAME = "tasks_v1"
 TASK_INDEX_CHROMA_CLIENT_SETTINGS = chromadb.config.Settings(
     is_persistent=True,
@@ -38,16 +44,16 @@ def hash_id(s: str) -> str:
 
 
 def search_index() -> FAISS:
-    return FAISS.load_local(
-        folder_path=f"{PROJECT_ROOT_DIR}/index",
-        index_name="notes_search",
-        embeddings=OPENAI_EMBEDDINGS,
-        allow_dangerous_deserialization=True,
+    return Chroma(
+        collection_name=NOTE_DOC_COLLECTION_NAME,
+        client_settings=NOTE_INDEX_CHROMA_CLIENT_SETTINGS,
+        embedding_function=OPENAI_EMBEDDINGS,
     )
 
 
 def task_index() -> Chroma:
     return Chroma(
+        collection_name=TASK_DOC_COLLECTION_NAME,
         client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         embedding_function=OPENAI_EMBEDDINGS,
     )
@@ -152,7 +158,8 @@ def build_search_index_and_embeddings(path: str) -> None:
     documents = utils.filter_complex_metadata(documents)
 
     index = Chroma.from_documents(
-        client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
+        collection_name=NOTE_DOC_COLLECTION_NAME,
+        client_settings=NOTE_INDEX_CHROMA_CLIENT_SETTINGS,
         documents=documents,
         embedding=OpenAIEmbeddings(
             openai_api_key=OPENAI_API_KEY,
@@ -329,6 +336,7 @@ def build_task_search_index_and_embeddings() -> None:
     documents = utils.filter_complex_metadata(documents)
 
     index = Chroma.from_documents(
+        collection_name=TASK_DOC_COLLECTION_NAME,
         client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         documents=documents,
         embedding=OpenAIEmbeddings(
