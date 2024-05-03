@@ -42,6 +42,7 @@ def search_index() -> FAISS:
         folder_path=f"{PROJECT_ROOT_DIR}/index",
         index_name="notes_search",
         embeddings=OPENAI_EMBEDDINGS,
+        allow_dangerous_deserialization=True,
     )
 
 
