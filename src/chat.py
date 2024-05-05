@@ -216,9 +216,9 @@ def gpt_answer_meeting_question(question: str) -> List[Document]:
         filter={
             "$or": [
                 {"tags": {"$eq": "meeting"}},
-                {"tags": {"$eq": "meeting,sales"}},
-                {"tags": {"$eq": "meeting,partner"}},
-                {"tags": {"$eq": "meeting,cx"}},
+                {"tags": {"$eq": "meeting, sales"}},
+                {"tags": {"$eq": "meeting, partner"}},
+                {"tags": {"$eq": "meeting, cx"}},
             ],
 
         },
