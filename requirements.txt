@@ -62,8 +62,9 @@ jsonpointer==2.4
 kiwisolver==1.4.5
 kubernetes==29.0.0
 langchain==0.1.16
-langchain-community==0.0.32
-langchain-core==0.1.42
+langchain-community==0.0.36
+langchain-core==0.1.50
+langchain-openai==0.1.6
 langchain-text-splitters==0.0.1
 langchainplus-sdk==0.0.20
 langsmith==0.1.47
@@ -87,7 +88,7 @@ onnx==1.12.0
 onnxconverter-common==1.13.0
 onnxmltools==1.11.1
 onnxruntime==1.15.1
-openai==0.27.4
+openai==1.25.1
 openapi-schema-pydantic==1.2.4
 openpyxl==3.0.10
 opentelemetry-api==1.22.0

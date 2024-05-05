@@ -2,7 +2,9 @@ import cmd
 import sys
 from typing import List
 
-from langchain.agents import AgentType, Tool, initialize_agent
+from langchain.globals import set_verbose
+from langchain.agents import AgentExecutor, Tool, create_openai_tools_agent
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
@@ -10,13 +12,12 @@ from langchain.chains.query_constructor.base import (
     StructuredQueryOutputParser,
     get_query_constructor_prompt,
 )
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.memory import ConversationBufferMemory
-from langchain.prompts import MessagesPlaceholder, PromptTemplate
-from langchain.tools import format_tool_to_openai_function, BaseTool
-from langchain.utilities import SerpAPIWrapper
-from langchain.agents.agent_toolkits import PlayWrightBrowserToolkit
+from langchain_community.tools import BaseTool
+from langchain_community.utilities import SerpAPIWrapper
+from langchain_community.agent_toolkits import PlayWrightBrowserToolkit
 from langchain_community.tools.playwright.utils import (
     create_sync_playwright_browser,
 )
@@ -24,6 +25,9 @@ from langchain.retrievers.self_query.chroma import ChromaTranslator
 
 from config import OPENAI_API_KEY, SERP_API_KEY
 from index import search_index, task_index
+
+
+set_verbose(True)
 
 
 BROWSER = create_sync_playwright_browser()
@@ -220,26 +224,22 @@ TOOLS: List[Tool | BaseTool] = [
     ),
 ]
 TOOLS += BROWSER_TOOLS
-
-
-FUNCTIONS = [format_tool_to_openai_function(t) for t in TOOLS]
-
-
 MEMORY = ConversationBufferMemory(memory_key="memory", return_messages=True)
 
-
-AGENT = initialize_agent(
-    tools=TOOLS,
-    functions=FUNCTIONS,
-    llm=AGENT_LLM,
-    agent=AgentType.OPENAI_FUNCTIONS,
-    agent_kwargs={
-        "extra_prompt_messages": [MessagesPlaceholder(variable_name="memory")],
-    },
-    memory=MEMORY,
-    verbose=True,
-    max_iterations=4,
+AGENT_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", "You are a helpful assistant. Always include your sources at the end of your response."),
+        MessagesPlaceholder("chat_history", optional=True),
+        ("human", "{input}"),
+        MessagesPlaceholder("agent_scratchpad"),
+    ]
 )
+AGENT = create_openai_tools_agent(
+    tools=TOOLS,
+    llm=AGENT_LLM,
+    prompt=AGENT_PROMPT,
+)
+AGENT_EXECUTOR = AgentExecutor(agent=AGENT, tools=TOOLS, memory=MEMORY)
 
 
 class ChatCmd(cmd.Cmd):
@@ -250,8 +250,8 @@ class ChatCmd(cmd.Cmd):
         print(self.commands)
 
     def default(self, line: str) -> None:
-        answer = AGENT.run(input=line)
-        print(answer)
+        answer = AGENT_EXECUTOR.invoke({"input": line})
+        print(answer['output'])
         # Write your code here by handling the input entered
         self.commands.append(line)
 

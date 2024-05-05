@@ -9,8 +9,8 @@ from typing import List, Tuple, Optional, Iterator
 
 import chromadb
 from langchain.docstore.document import Document
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS, Chroma, utils
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma, utils
 import orgparse
 from orgparse import OrgNode
 from orgparse.date import OrgDate
@@ -43,7 +43,7 @@ def hash_id(s: str) -> str:
     return hashlib.sha1(s.encode("utf-8")).hexdigest()
 
 
-def search_index() -> FAISS:
+def search_index() -> Chroma:
     return Chroma(
         collection_name=NOTE_DOC_COLLECTION_NAME,
         client_settings=NOTE_INDEX_CHROMA_CLIENT_SETTINGS,
@@ -157,7 +157,7 @@ def build_search_index_and_embeddings(path: str) -> None:
     # This is needed because all values in metadata must be strings
     documents = utils.filter_complex_metadata(documents)
 
-    index = Chroma.from_documents(
+    Chroma.from_documents(
         collection_name=NOTE_DOC_COLLECTION_NAME,
         client_settings=NOTE_INDEX_CHROMA_CLIENT_SETTINGS,
         documents=documents,
@@ -165,7 +165,6 @@ def build_search_index_and_embeddings(path: str) -> None:
             openai_api_key=OPENAI_API_KEY,
         ),
     )
-    index.persist()
 
 
 def org_agenda_files(emacs_customization_file: str) -> List[str]:
@@ -335,7 +334,7 @@ def build_task_search_index_and_embeddings() -> None:
     # This is needed because all values in metadata must be strings
     documents = utils.filter_complex_metadata(documents)
 
-    index = Chroma.from_documents(
+    Chroma.from_documents(
         collection_name=TASK_DOC_COLLECTION_NAME,
         client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         documents=documents,
@@ -343,7 +342,6 @@ def build_task_search_index_and_embeddings() -> None:
             openai_api_key=OPENAI_API_KEY,
         ),
     )
-    index.persist()
 
 
 class Command(str, Enum):
