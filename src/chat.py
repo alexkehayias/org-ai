@@ -186,6 +186,47 @@ def gpt_answer_tasks(question: str) -> List[Document]:
     return retriever.invoke(question) or []
 
 
+def gpt_answer_task_question(question: str) -> List[Document]:
+    index = task_index()
+    result: List[Document] = index.similarity_search(
+        question,
+        k=10,
+        filter={
+            "$and": [
+                {"is_task": True},
+                {
+                    "$or": [
+                        {"status": {"$eq": "DONE"}},
+                        {"status": {"$eq": "TODO"}},
+                        {"status": {"$eq": "WAITING"}},
+                        {"status": {"$eq": "CANCELED"}},
+                    ]
+                },
+            ]
+        },
+    )
+    return result
+
+
+def gpt_answer_meeting_question(question: str) -> List[Document]:
+    index = task_index()
+    result: List[Document] = index.similarity_search(
+        question,
+        k=10,
+        filter={
+            "$or": [
+                {"tags": {"$eq": "meeting"}},
+                {"tags": {"$eq": "meeting,sales"}},
+                {"tags": {"$eq": "meeting,partner"}},
+                {"tags": {"$eq": "meeting,cx"}},
+            ],
+
+        },
+    )
+    return result
+
+
+
 SEARCH = SerpAPIWrapper(
     serpapi_api_key=SERP_API_KEY,
     search_engine="google",
@@ -200,12 +241,12 @@ TOOLS: List[Tool | BaseTool] = [
     ),
     Tool(
         name="Tasks",
-        func=gpt_answer_tasks,
+        func=gpt_answer_task_question,
         description="Useful for when you need to respond to a question about tasks or todo lists or projects.",
     ),
     Tool(
         name="Meetings",
-        func=gpt_answer_tasks,
+        func=gpt_answer_meeting_question,
         description="Useful for when you need to respond to a question about meetings.",
     ),
     Tool(
@@ -215,7 +256,7 @@ TOOLS: List[Tool | BaseTool] = [
     ),
 ]
 TOOLS += BROWSER_TOOLS
-MEMORY = ConversationBufferMemory(memory_key="memory", return_messages=True)
+MEMORY = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 AGENT_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -230,7 +271,9 @@ AGENT = create_openai_tools_agent(
     llm=AGENT_LLM,
     prompt=AGENT_PROMPT,
 )
-AGENT_EXECUTOR = AgentExecutor(agent=AGENT, tools=TOOLS, memory=MEMORY)
+AGENT_EXECUTOR = AgentExecutor(
+    agent=AGENT, tools=TOOLS, memory=MEMORY
+)
 
 
 class ChatCmd(cmd.Cmd):
