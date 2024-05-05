@@ -139,60 +139,51 @@ TASKS_LLM = ChatOpenAI(
 )
 
 
-TASKS_SCHEMA = """\
-<< Structured Request Schema >>
-When responding use a markdown code snippet with a JSON object formatted in the following schema:
+SELF_QUERY_EXAMPLES = [
+    (
+        "What meetings did I have on 2024-04-25?",
+        {
+            "query": "meeting",
+            "filter": 'and(eq("is_meeting", true), eq("created_date", "2024-04-25"))',
+        },
+    ),
+    (
+        "What tasks do I have tagged as 'emacs'?",
+        {
+            "query": "emacs",
+            "filter": 'and(eq("is_task", true), eq("status", "todo"))',
+        },
+    )
+]
 
-```json
-{{{{
-    "query": string \\ text string to compare to document contents
-    "filter": string \\ logical condition statement for filtering documents
-}}}}
-```
-
-The query string should contain only text that is expected to match the contents of documents. Any conditions in the filter should not be mentioned in the query as well.
-
-A logical condition statement is composed of one or more comparison and logical operation statements.
-
-A comparison statement takes the form: `comp(attr, val)`:
-- `comp` ({allowed_comparators}): comparator
-- `attr` (string):  name of attribute to apply the comparison to
-- `val` (string): is the comparison value
-
-A logical operation statement takes the form `op(statement1, statement2, ...)`:
-- `op` ({allowed_operators}): logical operator
-- `statement1`, `statement2`, ... (comparison statements or logical operation statements): one or more statements to apply the operation to
-
-Make sure that you only use the comparators and logical operators listed above and no others.
-Make sure that filters only refer to attributes that exist in the data source.
-Make sure that filters only use the attributed names with its function names if there are functions applied on them.
-Make sure that filters only use timestamp in seconds as an integer when handling date data typed values. If you need to convert them, translate the date into a unix epoch timstamp with UTC timezone and double check that it is the correct year. NEVER use the `eq` operator for timestamps, if the requested date is a single day, use the `gte` operator for the requested date AND a `lte` operator for the requested date plus one day. Be very careful with dates.
-Make sure that filters take into account the descriptions of attributes and only make comparisons that are feasible given the type of data being stored.
-Make sure that filters are only used as needed. If there are no filters that should be applied return "NO_FILTER" for the filter value.\
-"""
-TASKS_SCHEMA_PROMPT = PromptTemplate.from_template(TASKS_SCHEMA)
 
 def gpt_answer_tasks(question: str) -> List[Document]:
     index = task_index()
 
     prompt = get_query_constructor_prompt(
-        document_contents="My tasks",
+        document_contents="My tasks and meetings that contains tags and dates",
         attribute_info=TASK_METADATA,
-        schema_prompt=TASKS_SCHEMA_PROMPT,
+        examples=SELF_QUERY_EXAMPLES,
     )
+    llm = ChatOpenAI(
+        openai_api_key=OPENAI_API_KEY,
+        model_name="gpt-3.5-turbo",
+        temperature=0,
+    )
+    # print(prompt.invoke({'query': question}))
     output_parser = StructuredQueryOutputParser.from_components()
-    query_constructor = prompt | TASKS_LLM | output_parser
+    query_constructor = prompt | llm | output_parser
 
-    print(query_constructor.invoke({"query": question}))
+    print(query_constructor.invoke(question))
 
     retriever = SelfQueryRetriever(
         query_constructor=query_constructor,
-        structured_query_translator=ChromaTranslator(),
         vectorstore=index,
+        structured_query_translator=ChromaTranslator(),
         verbose=True,
     )
 
-    return retriever.get_relevant_documents(question) or []
+    return retriever.invoke(question) or []
 
 
 SEARCH = SerpAPIWrapper(
