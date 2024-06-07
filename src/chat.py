@@ -1,11 +1,14 @@
 import cmd
 import sys
+import os
+import subprocess
 from typing import List
 
 from langchain.globals import set_verbose
 from langchain.agents import AgentExecutor, Tool, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
 from langchain.retrievers.self_query.base import SelfQueryRetriever
+from langchain.chains import LLMChain
 from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chains.query_constructor.base import (
@@ -60,7 +63,7 @@ NOTES_PROMPT = PromptTemplate(
 NOTES_CHAIN = load_qa_with_sources_chain(
     ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-4",
+        model_name="gpt-4-turbo",
         temperature=0,
     ),
     chain_type="stuff",
@@ -79,6 +82,107 @@ def gpt_answer_notes(question: str) -> str:
     )
     result_str: str = result["output_text"]
     return result_str
+
+
+ORGQL_TEMPLATE = """
+You are an AI assistant designed to help convert natural language questions into org-ql queries for use with Org mode in Emacs. org-ql queries are used to filter and search for specific entries in Org files based on various criteria like tags, properties, and timestamps.
+
+Instructions:
+
+	1.	Read the user's question carefully.
+	2.	Identify the key criteria mentioned in the question (e.g., tags, properties, deadlines, scheduled dates, priorities, etc.).
+	3.	Construct an appropriate org-ql query that reflects the user's criteria.
+        4.      Only return the org-ql query with no other text or explanation
+
+Examples:
+
+User Question:
+
+“Find all tasks that are due this week and have the tag 'work'.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (deadline :from today :to +7d) (tags "work")) :action '(org-get-heading t t))
+
+User Question:
+
+“Show me notes with the tag 'meeting' that were created last month.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (tags "meeting") (timestamp :from -1m :to today)) :action '(org-get-heading t t))
+
+User Question:
+
+“List all tasks with priority 'A' that are scheduled for tomorrow.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (priority "A") (scheduled :on +1d)) :action '(org-get-heading t t))
+
+User Question:
+
+“Find all entries tagged 'home' that have a deadline next week.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (tags "home") (deadline :from +7d :to +14d)) :action '(org-get-heading t t))
+
+User Question:
+
+“Show tasks that are not done and have the tag 'project'.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (todo) (tags "project")) :action '(org-get-heading t t))
+
+User Question:
+
+“Find all tasks with a priority of 'B' that were created this month.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (priority "B") (timestamp :from -1m :to today)) :action '(org-get-heading t t))
+
+User Question:
+
+{question}
+
+Converted org-ql Query:
+"""
+
+
+ORGQL_PROMPT = PromptTemplate(
+    template=ORGQL_TEMPLATE, input_variables=["question"]
+)
+
+
+ORGQL_CHAIN = LLMChain(
+    prompt=ORGQL_PROMPT,
+    llm=ChatOpenAI(
+        openai_api_key=OPENAI_API_KEY,
+        model_name="gpt-4o",
+        temperature=0,
+    ),
+)
+
+
+def gpt_answer_orgql(question: str) -> str:
+    org_ql_query = ORGQL_CHAIN.run(question=question)
+    print(org_ql_query)
+    # DANGER!!!
+    template = """(message (with-output-to-string (princ (mapconcat 'identity {ORGQL} "\\n"))))"""
+    command = [
+        'emacs',
+        '-l',
+        '$HOME/.emacs.d/init.el',
+        '--batch',
+        '--eval',
+        template.replace('{ORGQL}', org_ql_query)
+    ]
+    process = subprocess.run(command, capture_output=True, text=True)
+    result: str = process.stderr
+    return result
 
 
 TASK_METADATA = [
@@ -127,14 +231,14 @@ TASK_METADATA = [
 
 AGENT_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-4",
+    model_name="gpt-4-turbo",
     temperature=0,
 )
 
 
 TASKS_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-4",
+    model_name="gpt-4-turbo",
     temperature=0,
 )
 
@@ -167,7 +271,7 @@ def gpt_answer_tasks(question: str) -> List[Document]:
     )
     llm = ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-3.5-turbo",
+        model_name="gpt-4-turbo",
         temperature=0,
     )
     # print(prompt.invoke({'query': question}))
@@ -190,7 +294,7 @@ def gpt_answer_task_question(question: str) -> List[Document]:
     index = task_index()
     result: List[Document] = index.similarity_search(
         question,
-        k=10,
+        k=25,
         filter={
             "$and": [
                 {"is_task": True},
@@ -212,7 +316,7 @@ def gpt_answer_meeting_question(question: str) -> List[Document]:
     index = task_index()
     result: List[Document] = index.similarity_search(
         question,
-        k=10,
+        k=25,
         filter={
             "$or": [
                 {"tags": {"$eq": "meeting"}},
@@ -253,6 +357,11 @@ TOOLS: List[Tool | BaseTool] = [
         name="Notes",
         func=gpt_answer_notes,
         description="Useful for when you need to respond to a question about my notes or something I've written about before.",
+    ),
+    Tool(
+        name="OrgMode",
+        func=gpt_answer_orgql,
+        description="Useful for when you need to respond to a question about org-mode.",
     ),
 ]
 TOOLS += BROWSER_TOOLS
