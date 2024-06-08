@@ -27,7 +27,7 @@ from langchain_community.tools.playwright.utils import (
 from langchain.retrievers.self_query.chroma import ChromaTranslator
 
 from config import OPENAI_API_KEY, SERP_API_KEY
-from index import search_index, task_index
+from index import search_index
 
 
 set_verbose(True)
@@ -98,19 +98,19 @@ Examples:
 
 User Question:
 
-“Find all tasks that are due this week and have the tag 'work'.”
+“Find all tasks that are due this week.”
 
 Converted org-ql Query:
 
-(org-ql-select (org-agenda-files) '(and (deadline :from today :to +7d) (tags "work")) :action '(org-get-heading t t))
+(org-ql-select (org-agenda-files) '(and (todo) (deadline :from -7 :to 7)) :action '(org-get-heading t t))
 
 User Question:
 
-“Show me notes with the tag 'meeting' that were created last month.”
+“Show me meetings I had in the last month.”
 
 Converted org-ql Query:
 
-(org-ql-select (org-agenda-files) '(and (tags "meeting") (timestamp :from -1m :to today)) :action '(org-get-heading t t))
+(org-ql-select (org-agenda-files) '(and (tags "meeting") (ts :from -30 :to today)) :action '(org-get-heading t t))
 
 User Question:
 
@@ -118,23 +118,23 @@ User Question:
 
 Converted org-ql Query:
 
-(org-ql-select (org-agenda-files) '(and (priority "A") (scheduled :on +1d)) :action '(org-get-heading t t))
+(org-ql-select (org-agenda-files) '(and (priority "A") (scheduled :to 1)) :action '(org-get-heading t t))
 
 User Question:
 
-“Find all entries tagged 'home' that have a deadline next week.”
+“Find all personal tasks that have a deadline next week.”
 
 Converted org-ql Query:
 
-(org-ql-select (org-agenda-files) '(and (tags "home") (deadline :from +7d :to +14d)) :action '(org-get-heading t t))
+(org-ql-select (org-agenda-files) '(and (category "personal") (todo) (deadline :from 7 :to 14)) :action '(org-get-heading t t))
 
 User Question:
 
-“Show tasks that are not done and have the tag 'project'.”
+“Show tasks that are not done and have the tag 'admin'.”
 
 Converted org-ql Query:
 
-(org-ql-select (org-agenda-files) '(and (todo) (tags "project")) :action '(org-get-heading t t))
+(org-ql-select (org-agenda-files) '(and (todo) (tags "admin")) :action '(org-get-heading t t))
 
 User Question:
 
@@ -142,7 +142,7 @@ User Question:
 
 Converted org-ql Query:
 
-(org-ql-select (org-agenda-files) '(and (priority "B") (timestamp :from -1m :to today)) :action '(org-get-heading t t))
+(org-ql-select (org-agenda-files) '(and (todo) (priority "B") (ts :from -30 :to today)) :action '(org-get-heading t t))
 
 User Question:
 
@@ -261,76 +261,6 @@ SELF_QUERY_EXAMPLES = [
 ]
 
 
-def gpt_answer_tasks(question: str) -> List[Document]:
-    index = task_index()
-
-    prompt = get_query_constructor_prompt(
-        document_contents="My tasks and meetings that contains tags and dates",
-        attribute_info=TASK_METADATA,
-        examples=SELF_QUERY_EXAMPLES,
-    )
-    llm = ChatOpenAI(
-        openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-4-turbo",
-        temperature=0,
-    )
-    # print(prompt.invoke({'query': question}))
-    output_parser = StructuredQueryOutputParser.from_components()
-    query_constructor = prompt | llm | output_parser
-
-    print(query_constructor.invoke(question))
-
-    retriever = SelfQueryRetriever(
-        query_constructor=query_constructor,
-        vectorstore=index,
-        structured_query_translator=ChromaTranslator(),
-        verbose=True,
-    )
-
-    return retriever.invoke(question) or []
-
-
-def gpt_answer_task_question(question: str) -> List[Document]:
-    index = task_index()
-    result: List[Document] = index.similarity_search(
-        question,
-        k=25,
-        filter={
-            "$and": [
-                {"is_task": True},
-                {
-                    "$or": [
-                        {"status": {"$eq": "DONE"}},
-                        {"status": {"$eq": "TODO"}},
-                        {"status": {"$eq": "WAITING"}},
-                        {"status": {"$eq": "CANCELED"}},
-                    ]
-                },
-            ]
-        },
-    )
-    return result
-
-
-def gpt_answer_meeting_question(question: str) -> List[Document]:
-    index = task_index()
-    result: List[Document] = index.similarity_search(
-        question,
-        k=25,
-        filter={
-            "$or": [
-                {"tags": {"$eq": "meeting"}},
-                {"tags": {"$eq": "meeting, sales"}},
-                {"tags": {"$eq": "meeting, partner"}},
-                {"tags": {"$eq": "meeting, cx"}},
-            ],
-
-        },
-    )
-    return result
-
-
-
 SEARCH = SerpAPIWrapper(
     serpapi_api_key=SERP_API_KEY,
     search_engine="google",
@@ -339,29 +269,19 @@ SEARCH = SerpAPIWrapper(
 
 TOOLS: List[Tool | BaseTool] = [
     Tool(
+        name="OrgMode",
+        func=gpt_answer_orgql,
+        description="Useful for when you need to respond to a question about tasks, todos, meetings, and org-mode.",
+    ),
+    Tool(
         name="Search",
         func=SEARCH.run,
         description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term.",
     ),
     Tool(
-        name="Tasks",
-        func=gpt_answer_task_question,
-        description="Useful for when you need to respond to a question about tasks or todo lists or projects.",
-    ),
-    Tool(
-        name="Meetings",
-        func=gpt_answer_meeting_question,
-        description="Useful for when you need to respond to a question about meetings.",
-    ),
-    Tool(
         name="Notes",
         func=gpt_answer_notes,
         description="Useful for when you need to respond to a question about my notes or something I've written about before.",
-    ),
-    Tool(
-        name="OrgMode",
-        func=gpt_answer_orgql,
-        description="Useful for when you need to respond to a question about org-mode.",
     ),
 ]
 TOOLS += BROWSER_TOOLS
