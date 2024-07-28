@@ -91,10 +91,10 @@ Instructions:
 
 	1.	Read the user's question carefully.
 	2.	Identify the key criteria mentioned in the question (e.g., tags, properties, deadlines, scheduled dates, priorities, etc.).
-	3.	Construct an appropriate org-ql query that reflects the user's criteria.
+	3.	Construct an appropriate org-ql query that reflects the user's criteria following the examples (EXAMPLES) closely.
         4.      Only return the org-ql query with no other text or explanation
 
-Examples:
+EXAMPLES
 
 User Question:
 
@@ -106,11 +106,27 @@ Converted org-ql Query:
 
 User Question:
 
+“Find all tasks that are due next week.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (todo) (deadline :from 0 :to 7)) :action '(org-get-heading t t))
+
+User Question:
+
 “Show me meetings I had in the last month.”
 
 Converted org-ql Query:
 
 (org-ql-select (org-agenda-files) '(and (tags "meeting") (ts :from -30 :to today)) :action '(org-get-heading t t))
+
+User Question:
+
+“Show me meetings I had last week.”
+
+Converted org-ql Query:
+
+(org-ql-select (org-agenda-files) '(and (tags "meeting") (ts :from -7 :to today)) :action '(org-get-heading t t))
 
 User Question:
 
