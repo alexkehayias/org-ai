@@ -9,7 +9,8 @@ from typing import List, Tuple, Optional, Iterator
 
 import chromadb
 from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma, utils
+from langchain_community.vectorstores import utils
+from langchain_chroma import Chroma
 import orgparse
 from orgparse import OrgNode
 from orgparse.date import OrgDate
