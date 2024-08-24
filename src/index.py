@@ -27,19 +27,12 @@ NOTE_INDEX_CHROMA_CLIENT_SETTINGS = chromadb.config.Settings(
     persist_directory=f"{PROJECT_ROOT_DIR}/index",
     anonymized_telemetry=False,
 )
-TASK_DOC_COLLECTION_NAME = "tasks_v1"
-TASK_INDEX_CHROMA_CLIENT_SETTINGS = chromadb.config.Settings(
-    is_persistent=True,
-    persist_directory=f"{PROJECT_ROOT_DIR}/index",
-    anonymized_telemetry=False,
-)
 
 
 def hash_id(s: str) -> str:
     """
     Returns a hex encoded hash ID of the string.
     """
-
     return hashlib.sha1(s.encode("utf-8")).hexdigest()
 
 
@@ -47,14 +40,6 @@ def search_index() -> Chroma:
     return Chroma(
         collection_name=NOTE_DOC_COLLECTION_NAME,
         client_settings=NOTE_INDEX_CHROMA_CLIENT_SETTINGS,
-        embedding_function=OPENAI_EMBEDDINGS,
-    )
-
-
-def task_index() -> Chroma:
-    return Chroma(
-        collection_name=TASK_DOC_COLLECTION_NAME,
-        client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
         embedding_function=OPENAI_EMBEDDINGS,
     )
 
@@ -315,42 +300,12 @@ def org_task_file_to_docs(file_path: str) -> Iterator[Document]:
         yield org_element_to_doc(el)
 
 
-def build_task_search_index_and_embeddings() -> None:
-    """
-    Builds a search index for org-agenda tasks based on vectors of
-    embeddings.
-    """
-    emacs_customization_file = os.path.expanduser(
-        "~/.emacs.d/.customizations.el"
-    )
-    agenda_files = org_agenda_files(emacs_customization_file)
-
-    documents = []
-    for filename in agenda_files:
-        print(f"Working on {filename}")
-        for doc in org_task_file_to_docs(file_path=filename):
-            documents.append(doc)
-
-    # This is needed because all values in metadata must be strings
-    documents = utils.filter_complex_metadata(documents)
-
-    Chroma.from_documents(
-        collection_name=TASK_DOC_COLLECTION_NAME,
-        client_settings=TASK_INDEX_CHROMA_CLIENT_SETTINGS,
-        documents=documents,
-        embedding=OpenAIEmbeddings(
-            openai_api_key=OPENAI_API_KEY,
-        ),
-    )
-
-
 class Command(str, Enum):
     Index = "index"
 
 
 class IndexSubCommand(str, Enum):
     Notes = "notes"
-    Tasks = "tasks"
 
 
 if __name__ == "__main__":
@@ -362,9 +317,6 @@ if __name__ == "__main__":
         if command == IndexSubCommand.Notes:
             path = sys.argv[2]
             build_search_index_and_embeddings(path)
-            print("Indexing complete!")
-        elif command == IndexSubCommand.Tasks:
-            build_task_search_index_and_embeddings()
             print("Indexing complete!")
         else:
             print(f'Unknown sub-command "{command}"')

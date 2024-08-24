@@ -1,22 +1,14 @@
 import cmd
 import sys
-import os
 import subprocess
 from typing import List
 
 from langchain.globals import set_verbose
 from langchain.agents import AgentExecutor, Tool, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
-from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.chains import LLMChain
-from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
-from langchain.chains.query_constructor.base import (
-    StructuredQueryOutputParser,
-    get_query_constructor_prompt,
-)
 from langchain_openai import ChatOpenAI
-from langchain.docstore.document import Document
 from langchain.memory import ConversationBufferMemory
 from langchain_community.tools import BaseTool
 from langchain_community.utilities import SerpAPIWrapper
@@ -24,7 +16,6 @@ from langchain_community.agent_toolkits import PlayWrightBrowserToolkit
 from langchain_community.tools.playwright.utils import (
     create_sync_playwright_browser,
 )
-from langchain.retrievers.self_query.chroma import ChromaTranslator
 
 from config import OPENAI_API_KEY, SERP_API_KEY
 from index import search_index
@@ -201,80 +192,11 @@ def gpt_answer_orgql(question: str) -> str:
     return result
 
 
-TASK_METADATA = [
-    AttributeInfo(
-        name="title",
-        description="The title of the task, meeting, or heading",
-        type="string",
-    ),
-    AttributeInfo(
-        name="status",
-        description="The status of the task if available",
-        type="string",
-    ),
-    AttributeInfo(
-        name="is_task",
-        description="Whether this is a task or not",
-        type="bool",
-    ),
-    AttributeInfo(
-        name="is_meeting",
-        description="Whether this is a meeting or not",
-        type="bool",
-    ),
-    AttributeInfo(
-        name="created_date",
-        description="The timestamp the task or meeting was created formatted as an integer",
-        type="int",
-    ),
-    AttributeInfo(
-        name="deadline",
-        description="The timestamp the task is due",
-        type="int",
-    ),
-    AttributeInfo(
-        name="scheduled",
-        description="The timestamp the task is scheduled",
-        type="int",
-    ),
-    AttributeInfo(
-        name="tags",
-        description="A list of tags as a comma separated string that categorize the item if available",
-        type="string",
-    ),
-]
-
-
 AGENT_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
     model_name="gpt-4-turbo",
     temperature=0,
 )
-
-
-TASKS_LLM = ChatOpenAI(
-    openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-4-turbo",
-    temperature=0,
-)
-
-
-SELF_QUERY_EXAMPLES = [
-    (
-        "What meetings did I have on 2024-04-25?",
-        {
-            "query": "meeting",
-            "filter": 'and(eq("is_meeting", true), eq("created_date", "2024-04-25"))',
-        },
-    ),
-    (
-        "What tasks do I have tagged as 'emacs'?",
-        {
-            "query": "emacs",
-            "filter": 'and(eq("is_task", true), eq("status", "todo"))',
-        },
-    )
-]
 
 
 SEARCH = SerpAPIWrapper(
