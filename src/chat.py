@@ -8,6 +8,7 @@ from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain_community.utilities import SerpAPIWrapper
@@ -18,7 +19,7 @@ from langchain_community.tools.playwright.utils import (
 
 from config import OPENAI_API_KEY, SERP_API_KEY
 from index import search_index
-from langchain_core.tools import BaseTool, Tool
+from langchain_core.tools import BaseTool, Tool, StructuredTool
 
 
 set_verbose(True)
@@ -29,50 +30,27 @@ BROWSER_TOOLKIT = PlayWrightBrowserToolkit.from_browser(sync_browser=BROWSER)
 BROWSER_TOOLS = BROWSER_TOOLKIT.get_tools()
 
 
-NOTES_TEMPLATE = """
-You are a helpful personal assistant helping to answer the question ("QUESTION") by looking through related notes I've written ("SUMMARIES").
-You are really good at finding connections between notes and finding the key ideas to answer questions.
-Given the related notes ("SUMMARIES"), choose the notes that are most relevant to the question ("QUESTION") and write an answer ("ANSWER") with a list of sources ("SOURCES") you drew from.
-The list of sources ("SOURCES") should include the title of the note and the ID.
-ALWAYS return a "SOURCES" part in your answer unless there were none.
-If you don't know the answer, just say that you don't know. Don't try to make up an answer.
-
-QUESTION: {question}
-=========
-SUMMARIES:
-{summaries}
-=========
-ANSWER:
-"""
+NOTES_TEMPLATE = "Summarize this content: {context}"
 
 
-NOTES_PROMPT = PromptTemplate(
-    template=NOTES_TEMPLATE, input_variables=["summaries", "question"]
-)
+NOTES_PROMPT = ChatPromptTemplate.from_template(NOTES_TEMPLATE)
 
 
-NOTES_CHAIN = load_qa_with_sources_chain(
+NOTES_CHAIN = create_stuff_documents_chain(
     ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
         model_name="gpt-4o",
         temperature=0,
     ),
-    chain_type="stuff",
-    prompt=NOTES_PROMPT,
+    NOTES_PROMPT
 )
 
 
 def gpt_answer_notes(question: str) -> str:
     index = search_index()
-    result = NOTES_CHAIN(
-        {
-            "input_documents": index.similarity_search(question, k=4),
-            "question": question,
-        },
-        return_only_outputs=True,
-    )
-    result_str: str = result["output_text"]
-    return result_str
+    context = index.similarity_search(question, k=4)
+    result: str = NOTES_CHAIN.invoke(input={"context": context})
+    return result
 
 
 ORGQL_TEMPLATE = """
@@ -216,10 +194,10 @@ TOOLS: List[Tool | BaseTool] = [
         func=SEARCH.run,
         description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term.",
     ),
-    Tool(
+    StructuredTool.from_function(
         name="Notes",
         func=gpt_answer_notes,
-        description="Useful for when you need to respond to a question about my notes or something I've written about before.",
+        description="Useful for when you need to respond to a question about my notes or something I've written about before. IMPORTANT: Input should be a single string.",
     ),
 ]
 TOOLS += BROWSER_TOOLS
