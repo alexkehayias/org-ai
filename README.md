@@ -11,12 +11,24 @@ Use OpenAI GPT models to have a conversation from the contents of your notes.
 ### Installation
 
 ```
-source ./bin/activate
-pip3 install -r requirements.txt
+source .venv/bin/activate
+pip install wheel setuptools pip --upgrade
+pip install -r requirements.txt
+playwright install
 ```
 
 ### Running it
 
+Build the index:
+
 ```
-python3 src/chat.py
+python ./src/index.py notes /path/to/your/org-roam/notes
+
+```
+
+
+Run the chat bot:
+
+```
+python ./src/chat.py
 ```

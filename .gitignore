@@ -7,3 +7,4 @@ share/
 *.pickle
 bin/
 *__pycache__/
+.venv/
