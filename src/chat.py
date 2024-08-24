@@ -6,7 +6,7 @@ from typing import List
 from langchain.globals import set_verbose
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
-from langchain.chains import LLMChain
+from langchain_core.output_parsers import StrOutputParser
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
@@ -164,18 +164,18 @@ ORGQL_PROMPT = PromptTemplate(
 )
 
 
-ORGQL_CHAIN = LLMChain(
-    prompt=ORGQL_PROMPT,
-    llm=ChatOpenAI(
-        openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-4o",
-        temperature=0,
-    ),
+ORGQL_LLM = ChatOpenAI(
+    openai_api_key=OPENAI_API_KEY,
+    model_name="gpt-4o",
+    temperature=0,
 )
 
 
+ORGQL_CHAIN = ORGQL_PROMPT | ORGQL_LLM | StrOutputParser()
+
+
 def gpt_answer_orgql(question: str) -> str:
-    org_ql_query = ORGQL_CHAIN.run(question=question)
+    org_ql_query = ORGQL_CHAIN.invoke(input={"question": question})
     print(org_ql_query)
     # DANGER!!!
     template = """(message (with-output-to-string (princ (mapconcat 'identity {ORGQL} "\\n"))))"""
