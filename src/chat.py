@@ -54,7 +54,7 @@ NOTES_PROMPT = PromptTemplate(
 NOTES_CHAIN = load_qa_with_sources_chain(
     ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
-        model_name="gpt-4-turbo",
+        model_name="gpt-4o",
         temperature=0,
     ),
     chain_type="stuff",
@@ -194,7 +194,7 @@ def gpt_answer_orgql(question: str) -> str:
 
 AGENT_LLM = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
-    model_name="gpt-4-turbo",
+    model_name="gpt-4o",
     temperature=0,
 )
 
