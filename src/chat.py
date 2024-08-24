@@ -4,13 +4,12 @@ import subprocess
 from typing import List
 
 from langchain.globals import set_verbose
-from langchain.agents import AgentExecutor, Tool, create_openai_tools_agent
+from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
 from langchain.chains import LLMChain
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
-from langchain_community.tools import BaseTool
 from langchain_community.utilities import SerpAPIWrapper
 from langchain_community.agent_toolkits import PlayWrightBrowserToolkit
 from langchain_community.tools.playwright.utils import (
@@ -19,6 +18,7 @@ from langchain_community.tools.playwright.utils import (
 
 from config import OPENAI_API_KEY, SERP_API_KEY
 from index import search_index
+from langchain_core.tools import BaseTool, Tool
 
 
 set_verbose(True)

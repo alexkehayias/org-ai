@@ -8,7 +8,6 @@ from datetime import datetime, date, timezone
 from typing import List, Tuple, Optional, Iterator
 
 import chromadb
-from langchain.docstore.document import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma, utils
 import orgparse
@@ -16,6 +15,7 @@ from orgparse import OrgNode
 from orgparse.date import OrgDate
 
 from config import PROJECT_ROOT_DIR, OPENAI_API_KEY
+from langchain_core.documents import Document
 
 
 OPENAI_EMBEDDINGS = OpenAIEmbeddings(
