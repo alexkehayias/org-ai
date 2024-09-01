@@ -188,7 +188,7 @@ TOOLS: List[Tool | BaseTool] = [
         func=gpt_answer_orgql,
         description="Useful for when you need to respond to a question about tasks, todos, meetings, and org-mode.",
     ),
-    Tool(
+    StructuredTool.from_function(
         name="Search",
         func=SEARCH.run,
         description="Useful for when you need to answer questions about current events or the current state of the world. The input to this should be a single search term.",
