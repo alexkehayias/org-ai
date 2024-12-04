@@ -8,6 +8,7 @@ from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain_community.utilities import SerpAPIWrapper
@@ -29,7 +30,14 @@ BROWSER_TOOLKIT = PlayWrightBrowserToolkit.from_browser(sync_browser=BROWSER)
 BROWSER_TOOLS = BROWSER_TOOLKIT.get_tools()
 
 
-NOTES_TEMPLATE = "Summarize this content: {context}"
+NOTES_TEMPLATE = """
+Summarize this context (CONTEXT) concisely. Always include a list of sources (SOURCES) with the title and file name if available.
+
+CONTEXT:
+{context}
+
+SOURCES:
+"""
 
 
 NOTES_PROMPT = ChatPromptTemplate.from_template(NOTES_TEMPLATE)
@@ -46,9 +54,9 @@ NOTES_CHAIN = create_stuff_documents_chain(
 
 
 def gpt_answer_notes(question: str) -> str:
-    index = search_index()
-    context = index.similarity_search(question, k=4)
-    result: str = NOTES_CHAIN.invoke(input={"context": context})
+    index = search_index().as_retriever()
+    rag_chain = create_retrieval_chain(index, NOTES_CHAIN)
+    result: str = rag_chain.invoke({"input": question})
     return result
 
 
