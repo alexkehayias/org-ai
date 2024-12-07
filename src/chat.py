@@ -7,6 +7,7 @@ from langchain.globals import set_verbose
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.tools import BaseTool, Tool, StructuredTool
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain_openai import ChatOpenAI
@@ -19,7 +20,7 @@ from langchain_community.tools.playwright.utils import (
 
 from config import OPENAI_API_KEY, SERP_API_KEY
 from index import search_index
-from langchain_core.tools import BaseTool, Tool, StructuredTool
+from retrievers import NoteVectorStore
 
 
 set_verbose(True)
@@ -54,8 +55,8 @@ NOTES_CHAIN = create_stuff_documents_chain(
 
 
 def gpt_answer_notes(question: str) -> str:
-    index = search_index().as_retriever()
-    rag_chain = create_retrieval_chain(index, NOTES_CHAIN)
+    index = NoteVectorStore(api_url="http://localhost:2222")
+    rag_chain = create_retrieval_chain(index.as_retriever(), NOTES_CHAIN)
     result: str = rag_chain.invoke({"input": question})
     return result
 
