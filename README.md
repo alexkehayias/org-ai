@@ -19,14 +19,6 @@ playwright install
 
 ### Running it
 
-Build the index:
-
-```
-python ./src/index.py notes /path/to/your/org-roam/notes
-
-```
-
-
 Run the chat bot:
 
 ```

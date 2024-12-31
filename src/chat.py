@@ -23,7 +23,7 @@ from index import search_index
 from retrievers import NoteVectorStore
 
 
-set_verbose(True)
+set_verbose(False)
 
 
 BROWSER = create_sync_playwright_browser()
