@@ -39,14 +39,12 @@ class NoteVectorStore(VectorStore):
 
     def search(self, query: str, top_k: int = 10) -> List[Document]:
         response_data = self._make_request(query, include_similarity=False)
-        response_data = self._make_request(query)
         results = response_data.get('results', [])
 
         return self._results_to_docs(results[:top_k])
 
     def similarity_search(self, query: str, top_k: int = 10) -> List[Document]:
         response_data = self._make_request(query, include_similarity=True)
-        response_data = self._make_request(query)
         results = response_data.get('results', [])
 
         return self._results_to_docs(results[:top_k])
