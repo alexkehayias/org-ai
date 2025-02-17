@@ -2,6 +2,8 @@
 
 Utilities for bringing AI to org-mode.
 
+UPDATE: [I've since replaced this project with indexer](https://github.com/alexkehayias/indexer) and will be archiving this repo.
+
 ![org-ai-shell](https://github.com/alexkehayias/org-ai/assets/627790/3c00cac3-4208-4e10-9b15-e83b1439695f)
 
 ## Chat with your notes
